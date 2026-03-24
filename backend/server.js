@@ -6,15 +6,17 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS configuration
-app.use(cors({
+// CORS configuration - permissive for all origins
+const corsOptions = {
   origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+  optionsSuccessStatus: 200
+};
 
-// Explicit CORS headers for preflight
-app.options('*', cors());
+app.use(cors(corsOptions));
+app.options('/*', cors(corsOptions));
 
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
