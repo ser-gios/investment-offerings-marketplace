@@ -1,11 +1,11 @@
 /**
- * Vercel catch-all serverless function with CORS
+ * Vercel catch-all serverless function with CORS (CommonJS)
  */
 
 require('dotenv').config();
-const app = require('../index');
+const app = require('../api/index');
 
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   // Set CORS headers BEFORE anything else
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
@@ -14,10 +14,9 @@ export default function handler(req, res) {
   
   // Handle OPTIONS preflight
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   // Forward to Express app
   return app(req, res);
-}
+};
