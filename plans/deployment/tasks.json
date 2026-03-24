@@ -1,0 +1,27 @@
+[
+  {
+    "id": "1",
+    "content": "Provisionar base de datos PostgreSQL en Supabase y obtener credenciales de conexión",
+    "status": "completed"
+  },
+  {
+    "id": "2",
+    "content": "Ejecutar migraciones SQL en Supabase",
+    "status": "in_progress"
+  },
+  {
+    "id": "3",
+    "content": "Desplegar backend a Vercel con variables de entorno",
+    "status": "pending"
+  },
+  {
+    "id": "4",
+    "content": "Desplegar frontend a Vercel",
+    "status": "pending"
+  },
+  {
+    "id": "5",
+    "content": "Verificar endpoints en producción y hacer ajustes necesarios",
+    "status": "pending"
+  }
+]

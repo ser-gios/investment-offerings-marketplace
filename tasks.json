@@ -1,0 +1,27 @@
+[
+  {
+    "id": "1",
+    "content": "Backend: Agregar campo payment_status a proyectos, filtrar marketplace por estado pagado",
+    "status": "completed"
+  },
+  {
+    "id": "2",
+    "content": "Backend: Registrar admin user (sgalindo@outlook.com / julio2000) en db.js",
+    "status": "completed"
+  },
+  {
+    "id": "3",
+    "content": "Backend: Agregar verificación de admin en routes (solo user con role admin puede acceder)",
+    "status": "completed"
+  },
+  {
+    "id": "4",
+    "content": "Frontend: Ocultar link Admin en navbar si user no es admin",
+    "status": "completed"
+  },
+  {
+    "id": "5",
+    "content": "Frontend: Agregar botón Demo Admin en auth page",
+    "status": "completed"
+  }
+]

@@ -1,0 +1,28 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+app.use(cors({ origin: '*' }));
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/projects', require('./routes/projects'));
+app.use('/api/investments', require('./routes/investments'));
+app.use('/api/ratings', require('./routes/ratings'));
+app.use('/api/uploads', require('./routes/uploads'));
+app.use('/api/deposits', require('./routes/deposits'));
+app.use('/api/admin', require('./routes/admin'));
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+});
+
+app.listen(PORT, () => console.log(`NexVest API running on port ${PORT}`));

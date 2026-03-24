@@ -1,0 +1,32 @@
+[
+  {
+    "id": "1",
+    "content": "Scaffold project: FastAPI backend + React/Vite frontend, install dependencies",
+    "status": "completed"
+  },
+  {
+    "id": "2",
+    "content": "Build FastAPI backend: models, schemas, auth, projects, investments, ratings, admin, file upload routes",
+    "status": "completed"
+  },
+  {
+    "id": "3",
+    "content": "Build React app shell: routing, layout, global styles, design system tokens",
+    "status": "completed"
+  },
+  {
+    "id": "4",
+    "content": "Build Marketplace page: offering cards, filters, search, ratings display",
+    "status": "completed"
+  },
+  {
+    "id": "5",
+    "content": "Build Create Offering flow: multi-step form, file uploads, interest config",
+    "status": "completed"
+  },
+  {
+    "id": "6",
+    "content": "Build Offering Detail, Portfolio, Admin Dashboard pages",
+    "status": "completed"
+  }
+]
