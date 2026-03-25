@@ -7,15 +7,24 @@ let db;
 if (process.env.DATABASE_URL) {
   // Production: Use PostgreSQL via Supabase with proper async handling
   console.log('Using PostgreSQL (Supabase)');
+  console.log('DATABASE_URL format:', process.env.DATABASE_URL.substring(0, 50) + '...');
   const { Pool } = require('pg');
   
   // Use Pool instead of Client for better connection management
+  // Important: Add sslmode=require to connection string for Supabase
+  let connectionString = process.env.DATABASE_URL;
+  if (!connectionString.includes('sslmode=')) {
+    connectionString += (connectionString.includes('?') ? '&' : '?') + 'sslmode=require';
+  }
+  
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     ssl: { rejectUnauthorized: false },
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 5000,
+    keepalives: true,
+    keepalivesIdleTimeout: 1000,
   });
 
   pool.on('error', (err) => console.error('Unexpected error on idle client', err));
