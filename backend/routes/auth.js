@@ -26,6 +26,28 @@ router.get('/health', async (req, res) => {
   }
 });
 
+// Seed admin user (only works if no admin exists)
+router.post('/seed-admin', async (req, res) => {
+  try {
+    const adminExists = await dbAsync.query('SELECT id FROM users WHERE email = ?', ['sgalindo@outlook.com']);
+    if (adminExists) {
+      return res.json({ message: 'Admin user already exists' });
+    }
+    
+    const hash = bcrypt.hashSync('julio2000', 10);
+    const id = uuidv4();
+    
+    await dbAsync.run(
+      'INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)',
+      [id, 'sgalindo@outlook.com', hash, 'Admin', 'admin']
+    );
+    
+    res.json({ message: 'Admin user created successfully', id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post('/register', async (req, res) => {
   const { email, password, name, role } = req.body;
   if (!email || !password || !name) return res.status(400).json({ error: 'Missing fields' });
