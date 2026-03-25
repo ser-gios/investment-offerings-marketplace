@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const db = require('../db');
+const dbAsync = require('../db-wrapper');
 const { SECRET } = require('../middleware/auth');
 const { sendPasswordResetEmail } = require('../services/emailService');
 
@@ -66,9 +67,13 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', require('../middleware/auth').authenticate, (req, res) => {
-  const user = db.prepare('SELECT id, email, name, role, avatar, created_at FROM users WHERE id = ?').get(req.user.id);
-  res.json(user);
+router.get('/me', require('../middleware/auth').authenticate, async (req, res) => {
+  try {
+    const user = await dbAsync.query('SELECT id, email, name, role, avatar, created_at FROM users WHERE id = ?', [req.user.id]);
+    res.json(user || {});
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.post('/forgot-password', async (req, res) => {
