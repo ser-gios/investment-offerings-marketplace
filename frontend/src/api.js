@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+// API configuration - uses VITE_API_URL environment variable
 const baseURL = import.meta.env.VITE_API_URL 
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api';
