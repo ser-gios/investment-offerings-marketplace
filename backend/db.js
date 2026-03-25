@@ -5,61 +5,88 @@ const fs = require('fs');
 let db;
 
 if (process.env.DATABASE_URL) {
-  // Production: Use PostgreSQL via Supabase
+  // Production: Use PostgreSQL via Supabase with proper async handling
   console.log('Using PostgreSQL (Supabase)');
-  const { Pool } = require('pg');
-  const pool = new Pool({
+  const { Client } = require('pg');
+  
+  // Create a single client for the lifetime of the app
+  const client = new Client({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
   });
+
+  // Connect immediately
+  client.connect().catch(err => console.error('DB Connection Error:', err));
 
   db = {
     prepare: (sql) => ({
       run: (...params) => {
         try {
-          pool.query(sql, params, (err, result) => {
-            if (err) console.error('DB Error:', err);
+          client.query(sql, params, (err) => {
+            if (err) console.error('DB Error (run):', err);
           });
           return { changes: 1 };
         } catch (err) {
-          console.error('DB Error:', err);
+          console.error('DB Error (run):', err);
           throw err;
         }
       },
       get: (...params) => {
+        // This is sync wrapper but PostgreSQL is async
+        // For now, return null and log a warning
+        console.warn('⚠️  db.prepare().get() is called synchronously with PostgreSQL. Results may be unreliable.');
+        return null;
+      },
+      all: (...params) => {
+        // This is sync wrapper but PostgreSQL is async
+        console.warn('⚠️  db.prepare().all() is called synchronously with PostgreSQL. Results may be unreliable.');
+        return [];
+      }
+    }),
+    // Add async versions
+    prepareAsync: (sql) => ({
+      runAsync: async (...params) => {
         try {
-          let result = null;
-          pool.query(sql, params, (err, res) => {
-            if (err) console.error('DB Error:', err);
-            result = res?.rows?.[0];
-          });
-          return result;
+          const result = await client.query(sql, params);
+          return { changes: result.rowCount };
         } catch (err) {
-          console.error('DB Error:', err);
+          console.error('DB Error (runAsync):', err);
+          throw err;
+        }
+      },
+      getAsync: async (...params) => {
+        try {
+          const result = await client.query(sql, params);
+          return result.rows?.[0] || null;
+        } catch (err) {
+          console.error('DB Error (getAsync):', err);
           return null;
         }
       },
-      all: (...params) => {
+      allAsync: async (...params) => {
         try {
-          let result = [];
-          pool.query(sql, params, (err, res) => {
-            if (err) console.error('DB Error:', err);
-            result = res?.rows || [];
-          });
-          return result;
+          const result = await client.query(sql, params);
+          return result.rows || [];
         } catch (err) {
-          console.error('DB Error:', err);
+          console.error('DB Error (allAsync):', err);
           return [];
         }
       }
     }),
     exec: (sql) => {
       try {
-        pool.query(sql, (err) => {
-          if (err) console.error('DB Error:', err);
+        client.query(sql, (err) => {
+          if (err) console.error('DB Error (exec):', err);
         });
       } catch (err) {
-        console.error('DB Error:', err);
+        console.error('DB Error (exec):', err);
+      }
+    },
+    execAsync: async (sql) => {
+      try {
+        await client.query(sql);
+      } catch (err) {
+        console.error('DB Error (execAsync):', err);
       }
     }
   };
