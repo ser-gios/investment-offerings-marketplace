@@ -26,8 +26,8 @@ router.get('/health', async (req, res) => {
   }
 });
 
-// Seed admin user (only works if no admin exists)
-router.post('/seed-admin', async (req, res) => {
+// Seed admin user (only works if no admin exists) - accepts both GET and POST
+const seedAdminHandler = async (req, res) => {
   try {
     const adminExists = await dbAsync.query('SELECT id FROM users WHERE email = ?', ['sgalindo@outlook.com']);
     if (adminExists) {
@@ -46,7 +46,10 @@ router.post('/seed-admin', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
-});
+};
+
+router.get('/seed-admin', seedAdminHandler);
+router.post('/seed-admin', seedAdminHandler);
 
 router.post('/register', async (req, res) => {
   const { email, password, name, role } = req.body;
