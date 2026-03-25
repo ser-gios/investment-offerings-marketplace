@@ -1,14 +1,20 @@
 import axios from 'axios';
 
-// API configuration - uses VITE_API_URL environment variable
-// In production, defaults to Render backend
-const apiUrl = import.meta.env.VITE_API_URL || 'https://investment-marketplace-api.onrender.com';
-const baseURL = `${apiUrl}/api`;
+// API configuration
+// In development: use local proxy
+// In production: use Render backend URL
+let baseURL;
 
-// Always log the baseURL so we can debug in production
-console.log('🔗 API baseURL set to:', baseURL);
+if (import.meta.env.DEV) {
+  // Development: use local proxy
+  baseURL = '/api';
+} else {
+  // Production: hardcode Render backend URL
+  baseURL = 'https://investment-marketplace-api.onrender.com/api';
+}
+
+console.log('🔗 API baseURL:', baseURL);
 console.log('🔗 Environment - PROD:', import.meta.env.PROD, 'DEV:', import.meta.env.DEV);
-console.log('🔗 VITE_API_URL:', import.meta.env.VITE_API_URL);
 
 const api = axios.create({ baseURL });
 
