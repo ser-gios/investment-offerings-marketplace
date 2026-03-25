@@ -34,7 +34,10 @@ if (process.env.DATABASE_URL) {
   
   const pool = new Pool({
     connectionString,
-    ssl: { rejectUnauthorized: false },
+    ssl: {
+      rejectUnauthorized: false,
+      checkServerIdentity: () => undefined, // Skip certificate verification
+    },
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
