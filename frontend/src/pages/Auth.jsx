@@ -5,6 +5,8 @@ import { useLang } from '../context/LangContext';
 import { Eye, EyeOff, TrendingUp, ShieldCheck, Coins, ArrowLeft } from 'lucide-react';
 import api from '../api';
 
+// Auth page with login, register, forgot password, and password reset functionality
+
 export default function Auth() {
   const [params] = useSearchParams();
   const resetToken = params.get('token');
