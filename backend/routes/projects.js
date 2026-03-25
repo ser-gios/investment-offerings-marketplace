@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
+const dbAsync = require('../db-wrapper');
 const { authenticate, requireRole } = require('../middleware/auth');
 
 // Compute composite rating for a project
@@ -60,18 +61,25 @@ router.get('/:id', (req, res) => {
 });
 
 // POST create project (business only)
-router.post('/', authenticate, requireRole('business', 'admin'), (req, res) => {
+router.post('/', authenticate, requireRole('business', 'admin'), async (req, res) => {
   const { name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months } = req.body;
   if (!name || !description || !payout_frequency || !interest_rate || !total_pool) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  const id = uuidv4();
-  db.prepare(`
-    INSERT INTO projects (id, user_id, name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-  `).run(id, req.user.id, name, description, payout_frequency, +interest_rate, +(min_investment || 1000), max_investment ? +max_investment : null, +total_pool, category || 'General', risk_level || 'medium', +(duration_months || 12));
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
-  res.status(201).json(project);
+  
+  try {
+    const id = uuidv4();
+    await dbAsync.run(`
+      INSERT INTO projects (id, user_id, name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    `, [id, req.user.id, name, description, payout_frequency, +interest_rate, +(min_investment || 1000), max_investment ? +max_investment : null, +total_pool, category || 'General', risk_level || 'medium', +(duration_months || 12)]);
+    
+    const project = await dbAsync.query('SELECT * FROM projects WHERE id = ?', [id]);
+    res.status(201).json(project);
+  } catch (e) {
+    console.error('Create project error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // PATCH update project
