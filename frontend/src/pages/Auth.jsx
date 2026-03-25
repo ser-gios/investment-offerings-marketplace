@@ -6,6 +6,7 @@ import { Eye, EyeOff, TrendingUp, ShieldCheck, Coins, ArrowLeft } from 'lucide-r
 import api from '../api';
 
 // Auth page with login, register, forgot password, and password reset functionality
+// Using VITE_API_URL for backend connection
 
 export default function Auth() {
   const [params] = useSearchParams();
