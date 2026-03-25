@@ -11,23 +11,31 @@ if (process.env.DATABASE_URL) {
   const { Pool } = require('pg');
   
   // Use Pool instead of Client for better connection management
-  // Important: Add sslmode=require to connection string for Supabase
+  // Important: Add sslmode=require and disable IPv6 for Render+Supabase compatibility
   let connectionString = process.env.DATABASE_URL;
   if (!connectionString.includes('sslmode=')) {
     connectionString += (connectionString.includes('?') ? '&' : '?') + 'sslmode=require';
   }
+  // Add family=4 to force IPv4 (avoid IPv6 issues between Render and Supabase)
+  if (!connectionString.includes('family=')) {
+    connectionString += '&family=4';
+  }
+  
+  console.log('PostgreSQL connection string configured with SSL and IPv4');
   
   const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000,
     keepalives: true,
     keepalivesIdleTimeout: 1000,
   });
 
   pool.on('error', (err) => console.error('Unexpected error on idle client', err));
+  pool.on('connect', () => console.log('✓ PostgreSQL connection established'));
+  pool.on('remove', () => console.log('✗ PostgreSQL connection closed'));
 
   db = {
     prepare: (sql) => ({
