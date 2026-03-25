@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const db = require('../db');
 const { SECRET } = require('../middleware/auth');
+const { sendPasswordResetEmail } = require('../services/emailService');
 
 router.post('/register', (req, res) => {
   const { email, password, name, role } = req.body;
@@ -43,7 +44,7 @@ router.get('/me', require('../middleware/auth').authenticate, (req, res) => {
   res.json(user);
 });
 
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email is required' });
   
@@ -51,7 +52,7 @@ router.post('/forgot-password', (req, res) => {
     const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
     if (!user) {
       // Don't reveal if email exists or not (security best practice)
-      return res.json({ message: 'If email exists, reset link will be sent' });
+      return res.json({ message: 'Si el email existe, recibirás un link para resetear tu contraseña.' });
     }
 
     // Generate reset token (valid for 1 hour)
@@ -61,19 +62,30 @@ router.post('/forgot-password', (req, res) => {
     db.prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?')
       .run(resetToken, resetTokenExpires.toISOString(), user.id);
 
-    // TODO: Send email with reset link
-    // For now, return token in response (ONLY for development/testing)
+    // Build reset link
     const resetLink = `${process.env.FRONTEND_URL}/auth/reset-password?token=${resetToken}`;
     
-    // In production, you would send this via email
-    console.log(`Password reset link for ${email}: ${resetLink}`);
+    // Send email
+    const emailSent = await sendPasswordResetEmail(email.toLowerCase(), resetLink);
     
-    res.json({ 
-      message: 'If email exists, reset link will be sent',
-      // Remove this in production - only for testing
-      ...(process.env.NODE_ENV !== 'production' && { resetToken, resetLink })
-    });
+    if (!emailSent && process.env.NODE_ENV === 'production') {
+      console.error('Failed to send password reset email to:', email);
+      // Still return success to not reveal if email exists
+    }
+    
+    // In development, return token for testing
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Password reset link for ${email}: ${resetLink}`);
+      return res.json({ 
+        message: 'If email exists, reset link will be sent',
+        resetToken, 
+        resetLink
+      });
+    }
+    
+    res.json({ message: 'Si el email existe, recibirás un link para resetear tu contraseña.' });
   } catch (err) {
+    console.error('Forgot password error:', err);
     res.status(500).json({ error: err.message });
   }
 });
