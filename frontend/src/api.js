@@ -1,9 +1,10 @@
 import axios from 'axios';
 
 // API configuration - uses VITE_API_URL environment variable
+// In production, defaults to Render backend
 const baseURL = import.meta.env.VITE_API_URL 
   ? `${import.meta.env.VITE_API_URL}/api`
-  : '/api';
+  : (import.meta.env.PROD ? 'https://investment-marketplace-api.onrender.com/api' : '/api');
 
 const api = axios.create({ baseURL });
 
