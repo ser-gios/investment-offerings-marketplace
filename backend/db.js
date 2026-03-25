@@ -199,18 +199,20 @@ db.exec(`
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
-// Ensure admin user exists with correct credentials
-db.prepare('DELETE FROM users WHERE email = ?').run('admin@nexvest.com');
-const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get('sgalindo@outlook.com');
-if (!adminExists) {
-  const hash = bcrypt.hashSync('julio2000', 10);
-  db.prepare('INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)')
-    .run(uuidv4(), 'sgalindo@outlook.com', hash, 'Admin', 'admin');
-}
+// Only seed data in SQLite (development), not PostgreSQL (production)
+if (!process.env.DATABASE_URL) {
+  // Ensure admin user exists with correct credentials
+  db.prepare('DELETE FROM users WHERE email = ?').run('admin@nexvest.com');
+  const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get('sgalindo@outlook.com');
+  if (!adminExists) {
+    const hash = bcrypt.hashSync('julio2000', 10);
+    db.prepare('INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)')
+      .run(uuidv4(), 'sgalindo@outlook.com', hash, 'Admin', 'admin');
+  }
 
-// Seed demo data
-const projectCount = db.prepare('SELECT COUNT(*) as cnt FROM projects').get();
-if (projectCount.cnt === 0) {
+  // Seed demo data
+  const projectCount = db.prepare('SELECT COUNT(*) as cnt FROM projects').get();
+  if (projectCount && projectCount.cnt === 0) {
   const hash = bcrypt.hashSync('demo123', 10);
   const bizId = uuidv4();
   const invId = uuidv4();
@@ -250,11 +252,12 @@ if (projectCount.cnt === 0) {
     );
   }
 
-  // Seed an investment
-  const projId = projects[0].id;
-  const invInvestId = uuidv4();
-  db.prepare('INSERT INTO investments (id, investor_id, project_id, amount, purchase_price, current_value) VALUES (?,?,?,?,?,?)')
-    .run(invInvestId, invId, projId, 5000, 5000, 5212.5);
+    // Seed an investment
+    const projId = projects[0].id;
+    const invInvestId = uuidv4();
+    db.prepare('INSERT INTO investments (id, investor_id, project_id, amount, purchase_price, current_value) VALUES (?,?,?,?,?,?)')
+      .run(invInvestId, invId, projId, 5000, 5000, 5212.5);
+  }
 }
 
 module.exports = db;
