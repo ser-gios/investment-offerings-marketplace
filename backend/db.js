@@ -86,6 +86,8 @@ db.exec(`
     avatar TEXT,
     balance REAL NOT NULL DEFAULT 0,
     wallet_address TEXT,
+    reset_token TEXT,
+    reset_token_expires TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     is_active INTEGER DEFAULT 1
   );
