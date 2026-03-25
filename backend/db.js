@@ -1,13 +1,80 @@
-const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+// Try to use PostgreSQL in production, fall back to SQLite in development
+let db;
 
-const db = new Database(path.join(__dirname, 'marketplace.db'));
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+if (process.env.DATABASE_URL) {
+  // Production: Use PostgreSQL via Supabase
+  console.log('Using PostgreSQL (Supabase)');
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+
+  db = {
+    prepare: (sql) => ({
+      run: (...params) => {
+        try {
+          pool.query(sql, params, (err, result) => {
+            if (err) console.error('DB Error:', err);
+          });
+          return { changes: 1 };
+        } catch (err) {
+          console.error('DB Error:', err);
+          throw err;
+        }
+      },
+      get: (...params) => {
+        try {
+          let result = null;
+          pool.query(sql, params, (err, res) => {
+            if (err) console.error('DB Error:', err);
+            result = res?.rows?.[0];
+          });
+          return result;
+        } catch (err) {
+          console.error('DB Error:', err);
+          return null;
+        }
+      },
+      all: (...params) => {
+        try {
+          let result = [];
+          pool.query(sql, params, (err, res) => {
+            if (err) console.error('DB Error:', err);
+            result = res?.rows || [];
+          });
+          return result;
+        } catch (err) {
+          console.error('DB Error:', err);
+          return [];
+        }
+      }
+    }),
+    exec: (sql) => {
+      try {
+        pool.query(sql, (err) => {
+          if (err) console.error('DB Error:', err);
+        });
+      } catch (err) {
+        console.error('DB Error:', err);
+      }
+    }
+  };
+} else {
+  // Development: Use SQLite
+  console.log('Using SQLite (local development)');
+  const Database = require('better-sqlite3');
+
+  const uploadsDir = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  db = new Database(path.join(__dirname, 'marketplace.db'));
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
