@@ -1,30 +1,37 @@
 const router = require('express').Router();
 const db = require('../db');
+const dbAsync = require('../db-wrapper');
 const { authenticate, requireRole } = require('../middleware/auth');
 
 router.use(authenticate, requireRole('admin'));
 
 // Dashboard stats
-router.get('/stats', (req, res) => {
-  const users = db.prepare('SELECT COUNT(*) as cnt FROM users WHERE role != ?').get('admin').cnt;
-  const projects = db.prepare('SELECT COUNT(*) as cnt FROM projects').get().cnt;
-  const activeProjects = db.prepare("SELECT COUNT(*) as cnt FROM projects WHERE status = 'active'").get().cnt;
-  const investments = db.prepare('SELECT COUNT(*) as cnt, SUM(amount) as total FROM investments').get();
-  const payouts = db.prepare("SELECT COUNT(*) as cnt, SUM(amount) as total FROM payouts WHERE status = 'pending'").get();
-  const recentProjects = db.prepare(`
-    SELECT p.*, u.name as business_name FROM projects p JOIN users u ON p.user_id = u.id
-    ORDER BY p.created_at DESC LIMIT 5
-  `).all();
-  res.json({
-    users,
-    projects,
-    active_projects: activeProjects,
-    total_invested: investments.total || 0,
-    total_investments: investments.cnt,
-    pending_payouts: payouts.cnt,
-    pending_payouts_amount: payouts.total || 0,
-    recent_projects: recentProjects,
-  });
+router.get('/stats', async (req, res) => {
+  try {
+    const users = await dbAsync.query('SELECT COUNT(*) as cnt FROM users WHERE role != ?', ['admin']);
+    const projects = await dbAsync.query('SELECT COUNT(*) as cnt FROM projects', []);
+    const activeProjects = await dbAsync.query("SELECT COUNT(*) as cnt FROM projects WHERE status = 'active'", []);
+    const investments = await dbAsync.query('SELECT COUNT(*) as cnt, SUM(amount) as total FROM investments', []);
+    const payouts = await dbAsync.query("SELECT COUNT(*) as cnt, SUM(amount) as total FROM payouts WHERE status = 'pending'", []);
+    const recentProjects = await dbAsync.queryAll(`
+      SELECT p.*, u.name as business_name FROM projects p JOIN users u ON p.user_id = u.id
+      ORDER BY p.created_at DESC LIMIT 5
+    `, []);
+    
+    res.json({
+      users: users?.cnt || 0,
+      projects: projects?.cnt || 0,
+      active_projects: activeProjects?.cnt || 0,
+      total_invested: investments?.total || 0,
+      total_investments: investments?.cnt || 0,
+      pending_payouts: payouts?.cnt || 0,
+      pending_payouts_amount: payouts?.total || 0,
+      recent_projects: recentProjects || [],
+    });
+  } catch (e) {
+    console.error('Admin stats error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET all users
