@@ -17,6 +17,7 @@ export default function MyAccount() {
   const [verifying, setVerifying] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [activeTab, setActiveTab] = useState('balance');
+  const [depositStep, setDepositStep] = useState('amount'); // 'amount' or 'verify'
 
   const BLOCKCHAIN_ADDRESS = '0xB9705cEB7821D96bF5083f70E20E268e19c1a156';
   const MIN_DEPOSIT = 200;
@@ -57,8 +58,7 @@ export default function MyAccount() {
         amount: parseFloat(depositAmount)
       });
       setSelectedDeposit(res.data);
-      setDepositAmount('');
-      alert(lang === 'es' ? 'Depósito creado. Ingrese el hash de la transacción para verificar.' : 'Deposit created. Enter transaction hash to verify.');
+      setDepositStep('verify'); // Move to verify step
       loadAccountData();
     } catch (err) {
       alert(err.response?.data?.error || (lang === 'es' ? 'Error creando depósito' : 'Error creating deposit'));
@@ -77,6 +77,8 @@ export default function MyAccount() {
       alert(lang === 'es' ? 'Transacción verificada. Saldo acreditado.' : 'Transaction verified. Balance credited.');
       setSelectedDeposit(null);
       setTxHash('');
+      setDepositStep('amount');
+      setDepositAmount('');
       loadAccountData();
     } catch (err) {
       alert(err.response?.data?.error || (lang === 'es' ? 'Error verificando transacción' : 'Error verifying transaction'));
@@ -124,46 +126,74 @@ export default function MyAccount() {
           <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '30px' }}>
             <h3 style={{ fontSize: '20px', color: 'white', marginTop: '0', marginBottom: '20px' }}>{lang === 'es' ? 'Crear Nuevo Depósito' : 'Create New Deposit'}</h3>
 
-            {!selectedDeposit ? (
-              <form onSubmit={handleCreateDeposit}>
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', color: '#999', fontSize: '14px', marginBottom: '8px' }}>{lang === 'es' ? 'Monto (USDT)' : 'Amount (USDT)'}</label>
-                  <input type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="200" style={{ width: '100%', padding: '12px', background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', color: 'white', fontSize: '16px', boxSizing: 'border-box' }} min={MIN_DEPOSIT} step="0.01" />
-                  <p style={{ color: '#666', fontSize: '12px', marginTop: '8px' }}>{lang === 'es' ? `Mínimo: $${MIN_DEPOSIT} USDT` : `Minimum: $${MIN_DEPOSIT} USDT`}</p>
+            {/* Step indicator */}
+            {selectedDeposit && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgb(255, 214, 0)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgb(27, 28, 32)', fontWeight: '700', zIndex: 2 }}>1</div>
+                  <div style={{ flex: 1, height: '2px', background: 'rgba(255, 255, 255, 0.2)', margin: '0 20px' }}></div>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: depositStep === 'verify' ? 'rgb(255, 214, 0)' : 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: depositStep === 'verify' ? 'rgb(27, 28, 32)' : '#999', fontWeight: '700', zIndex: 2 }}>2</div>
                 </div>
+              </div>
+            )}
 
-                <button type="submit" style={{ padding: '12px 24px', background: 'linear-gradient(135deg, rgb(255, 214, 0) 0%, rgb(255, 140, 0) 100%)', border: 'none', borderRadius: '8px', color: 'rgb(27, 28, 32)', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
-                  {lang === 'es' ? 'Crear Depósito' : 'Create Deposit'}
-                </button>
-              </form>
-            ) : (
-              <div>
-                <h4 style={{ color: 'white', marginTop: '0' }}>{lang === 'es' ? 'Verificar Transacción' : 'Verify Transaction'}</h4>
+            <form onSubmit={depositStep === 'amount' ? handleCreateDeposit : (e) => { e.preventDefault(); handleVerifyDeposit(); }}>
+              {/* STEP 1: Amount */}
+              {depositStep === 'amount' && (
+                <div>
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', color: '#999', fontSize: '14px', marginBottom: '8px' }}>{lang === 'es' ? 'Monto (USDT)' : 'Amount (USDT)'}</label>
+                    <input type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="200" style={{ width: '100%', padding: '12px', background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', color: 'white', fontSize: '16px', boxSizing: 'border-box' }} min={MIN_DEPOSIT} step="0.01" />
+                    <p style={{ color: '#666', fontSize: '12px', marginTop: '8px' }}>{lang === 'es' ? `Mínimo: $${MIN_DEPOSIT} USDT` : `Minimum: $${MIN_DEPOSIT} USDT`}</p>
+                  </div>
 
-                <div style={{ marginBottom: '20px', padding: '15px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px' }}>
-                  <p style={{ color: '#999', fontSize: '12px', margin: '0 0 8px 0' }}>{lang === 'es' ? 'Dirección de depósito' : 'Deposit address'}:</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <code style={{ color: 'rgb(255, 214, 0)', fontSize: '12px', flex: 1, wordBreak: 'break-all' }}>{BLOCKCHAIN_ADDRESS}</code>
-                    <button onClick={copyAddress} style={{ padding: '8px', background: copiedAddress ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)', border: 'none', borderRadius: '4px', color: copiedAddress ? '#00ff00' : '#999', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                      {copiedAddress ? <Check size={16} /> : <Copy size={16} />}
+                  <button type="submit" style={{ padding: '12px 24px', background: 'linear-gradient(135deg, rgb(255, 214, 0) 0%, rgb(255, 140, 0) 100%)', border: 'none', borderRadius: '8px', color: 'rgb(27, 28, 32)', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                    {lang === 'es' ? 'Siguiente' : 'Next'}
+                  </button>
+                </div>
+              )}
+
+              {/* STEP 2: Verify */}
+              {depositStep === 'verify' && selectedDeposit && (
+                <div>
+                  {/* Amount Summary */}
+                  <div style={{ marginBottom: '25px', padding: '15px', background: 'rgba(255, 214, 0, 0.1)', border: '1px solid rgba(255, 214, 0, 0.3)', borderRadius: '8px' }}>
+                    <p style={{ color: '#999', fontSize: '12px', margin: '0 0 8px 0', textTransform: 'uppercase' }}>{lang === 'es' ? 'Monto a Depositar' : 'Amount to Deposit'}</p>
+                    <p style={{ color: 'rgb(255, 214, 0)', fontSize: '24px', margin: '0', fontWeight: '700' }}>${parseFloat(selectedDeposit.amount).toFixed(2)} USDT</p>
+                  </div>
+
+                  {/* Deposit Address */}
+                  <div style={{ marginBottom: '25px' }}>
+                    <label style={{ display: 'block', color: '#999', fontSize: '12px', marginBottom: '8px', textTransform: 'uppercase' }}>{lang === 'es' ? 'Dirección de Depósito' : 'Deposit Address'}</label>
+                    <div style={{ padding: '15px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <code style={{ color: 'rgb(255, 214, 0)', fontSize: '12px', flex: 1, wordBreak: 'break-all', fontFamily: 'monospace' }}>{BLOCKCHAIN_ADDRESS}</code>
+                      <button type="button" onClick={copyAddress} style={{ padding: '8px 12px', background: copiedAddress ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)', border: 'none', borderRadius: '4px', color: copiedAddress ? '#00ff00' : '#999', cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', fontSize: '12px' }}>
+                        {copiedAddress ? <><Check size={16} style={{ marginRight: '4px' }} />{lang === 'es' ? 'Copiado' : 'Copied'}</> : <><Copy size={16} style={{ marginRight: '4px' }} />{lang === 'es' ? 'Copiar' : 'Copy'}</>}
+                      </button>
+                    </div>
+                    <p style={{ color: '#666', fontSize: '12px', marginTop: '8px' }}>{lang === 'es' ? 'Usa la dirección BNB Chain (BSC) con USDT' : 'Use BNB Chain (BSC) address with USDT'}</p>
+                  </div>
+
+                  {/* Transaction Hash */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', color: '#999', fontSize: '12px', marginBottom: '8px', textTransform: 'uppercase' }}>{lang === 'es' ? 'Hash de Transacción' : 'Transaction Hash'}</label>
+                    <input type="text" value={txHash} onChange={(e) => setTxHash(e.target.value)} placeholder="0x..." style={{ width: '100%', padding: '12px', background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', color: 'white', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'monospace' }} />
+                    <p style={{ color: '#666', fontSize: '12px', marginTop: '8px' }}>{lang === 'es' ? 'Pega el hash de tu transacción después de enviar los fondos' : 'Paste your transaction hash after sending funds'}</p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="submit" disabled={verifying} style={{ flex: 1, padding: '12px 24px', background: verifying ? 'rgba(255, 214, 0, 0.3)' : 'linear-gradient(135deg, rgb(255, 214, 0) 0%, rgb(255, 140, 0) 100%)', border: 'none', borderRadius: '8px', color: 'rgb(27, 28, 32)', fontSize: '14px', fontWeight: '600', cursor: verifying ? 'not-allowed' : 'pointer', opacity: verifying ? 0.6 : 1 }}>
+                      {verifying ? (lang === 'es' ? 'Verificando...' : 'Verifying...') : (lang === 'es' ? 'Verificar Transacción' : 'Verify Transaction')}
+                    </button>
+
+                    <button type="button" onClick={() => { setSelectedDeposit(null); setTxHash(''); setDepositStep('amount'); setDepositAmount(''); }} style={{ padding: '12px 24px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '8px', color: '#999', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                      {lang === 'es' ? 'Cancelar' : 'Cancel'}
                     </button>
                   </div>
                 </div>
-
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', color: '#999', fontSize: '14px', marginBottom: '8px' }}>{lang === 'es' ? 'Hash de Transacción' : 'Transaction Hash'}</label>
-                  <input type="text" value={txHash} onChange={(e) => setTxHash(e.target.value)} placeholder="0x..." style={{ width: '100%', padding: '12px', background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', color: 'white', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'monospace' }} />
-                </div>
-
-                <button onClick={handleVerifyDeposit} disabled={verifying} style={{ padding: '12px 24px', background: verifying ? 'rgba(255, 214, 0, 0.3)' : 'linear-gradient(135deg, rgb(255, 214, 0) 0%, rgb(255, 140, 0) 100%)', border: 'none', borderRadius: '8px', color: 'rgb(27, 28, 32)', fontSize: '14px', fontWeight: '600', cursor: verifying ? 'not-allowed' : 'pointer', opacity: verifying ? 0.6 : 1 }}>
-                  {verifying ? (lang === 'es' ? 'Verificando...' : 'Verifying...') : (lang === 'es' ? 'Verificar Transacción' : 'Verify Transaction')}
-                </button>
-
-                <button onClick={() => { setSelectedDeposit(null); setTxHash(''); }} style={{ padding: '12px 24px', marginLeft: '10px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '8px', color: '#999', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
-                  {lang === 'es' ? 'Cancelar' : 'Cancel'}
-                </button>
-              </div>
-            )}
+              )}
+            </form>
           </div>
         )}
 
