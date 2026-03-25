@@ -5,12 +5,10 @@ import axios from 'axios';
 const apiUrl = import.meta.env.VITE_API_URL || 'https://investment-marketplace-api.onrender.com';
 const baseURL = `${apiUrl}/api`;
 
-// Log in development to debug
-if (import.meta.env.DEV) {
-  console.log('API baseURL:', baseURL);
-  console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
-  console.log('PROD:', import.meta.env.PROD);
-}
+// Always log the baseURL so we can debug in production
+console.log('🔗 API baseURL set to:', baseURL);
+console.log('🔗 Environment - PROD:', import.meta.env.PROD, 'DEV:', import.meta.env.DEV);
+console.log('🔗 VITE_API_URL:', import.meta.env.VITE_API_URL);
 
 const api = axios.create({ baseURL });
 

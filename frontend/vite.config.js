@@ -5,10 +5,15 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
+  // In production, always use Render backend
+  const renderBackendUrl = 'https://investment-marketplace-api.onrender.com'
+  const apiUrl = mode === 'production' ? renderBackendUrl : (env.VITE_API_URL || renderBackendUrl)
+  
   return {
     plugins: [react()],
     define: {
-      'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || 'https://investment-marketplace-api.onrender.com'),
+      'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
+      '__VITE_API_URL__': JSON.stringify(apiUrl),
     },
     server: {
       port: 3000,
