@@ -8,6 +8,24 @@ const dbAsync = require('../db-wrapper');
 const { SECRET } = require('../middleware/auth');
 const { sendPasswordResetEmail } = require('../services/emailService');
 
+// Diagnostic endpoint to test database connection
+router.get('/health', async (req, res) => {
+  try {
+    const result = await dbAsync.query('SELECT NOW()', []);
+    res.json({ 
+      status: 'ok', 
+      database: 'connected',
+      timestamp: result?.now || new Date().toISOString()
+    });
+  } catch (e) {
+    res.status(500).json({ 
+      status: 'error', 
+      database: 'connection_failed',
+      error: e.message 
+    });
+  }
+});
+
 router.post('/register', async (req, res) => {
   const { email, password, name, role } = req.body;
   if (!email || !password || !name) return res.status(400).json({ error: 'Missing fields' });
