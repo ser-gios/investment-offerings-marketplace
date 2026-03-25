@@ -99,14 +99,26 @@ router.patch('/:id', authenticate, (req, res) => {
 });
 
 // GET my projects (business)
-router.get('/my/listings', authenticate, requireRole('business', 'admin'), (req, res) => {
-  const projects = db.prepare('SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
-  res.json(projects.map(p => ({
-    ...p,
-    rating: getProjectRating(p.id),
-    funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
-    investments_count: db.prepare(`SELECT COUNT(*) as cnt FROM investments WHERE project_id = ? AND status='active'`).get(p.id)?.cnt || 0,
-  })));
+router.get('/my/listings', authenticate, requireRole('business', 'admin'), async (req, res) => {
+  try {
+    const projects = await dbAsync.queryAll('SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC', [req.user.id]);
+    
+    const result = [];
+    for (const p of projects) {
+      const investmentsCount = await dbAsync.query(`SELECT COUNT(*) as cnt FROM investments WHERE project_id = ? AND status='active'`, [p.id]);
+      result.push({
+        ...p,
+        rating: getProjectRating(p.id),
+        funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
+        investments_count: investmentsCount?.cnt || 0,
+      });
+    }
+    
+    res.json(result);
+  } catch (e) {
+    console.error('Get my projects error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;
