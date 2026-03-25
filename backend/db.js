@@ -66,35 +66,45 @@ if (process.env.DATABASE_URL) {
       }
     }),
     // Add async versions (REQUIRED for PostgreSQL)
-    prepareAsync: (sql) => ({
-      runAsync: async (...params) => {
-        try {
-          const result = await pool.query(sql, params);
-          return { changes: result.rowCount || 0 };
-        } catch (err) {
-          console.error('DB Error (runAsync):', err.message, 'SQL:', sql);
-          throw err;
+    prepareAsync: (sql) => {
+      // Convert SQLite ? placeholders to PostgreSQL $1, $2, etc.
+      let pgSql = sql;
+      let paramCount = 0;
+      pgSql = pgSql.replace(/\?/g, () => {
+        paramCount++;
+        return `$${paramCount}`;
+      });
+      
+      return {
+        runAsync: async (...params) => {
+          try {
+            const result = await pool.query(pgSql, params);
+            return { changes: result.rowCount || 0 };
+          } catch (err) {
+            console.error('DB Error (runAsync):', err.message, 'SQL:', pgSql);
+            throw err;
+          }
+        },
+        getAsync: async (...params) => {
+          try {
+            const result = await pool.query(pgSql, params);
+            return result.rows?.[0] || null;
+          } catch (err) {
+            console.error('DB Error (getAsync):', err.message, 'SQL:', pgSql);
+            throw err;
+          }
+        },
+        allAsync: async (...params) => {
+          try {
+            const result = await pool.query(pgSql, params);
+            return result.rows || [];
+          } catch (err) {
+            console.error('DB Error (allAsync):', err.message, 'SQL:', pgSql);
+            throw err;
+          }
         }
-      },
-      getAsync: async (...params) => {
-        try {
-          const result = await pool.query(sql, params);
-          return result.rows?.[0] || null;
-        } catch (err) {
-          console.error('DB Error (getAsync):', err.message, 'SQL:', sql);
-          throw err;
-        }
-      },
-      allAsync: async (...params) => {
-        try {
-          const result = await pool.query(sql, params);
-          return result.rows || [];
-        } catch (err) {
-          console.error('DB Error (allAsync):', err.message, 'SQL:', sql);
-          throw err;
-        }
-      }
-    }),
+      };
+    },
     exec: (sql) => {
       console.warn('⚠️  db.exec() called synchronously with PostgreSQL. Use execAsync() instead.');
     },
