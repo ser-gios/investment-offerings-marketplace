@@ -9,9 +9,20 @@ if (process.env.DATABASE_URL) {
   console.log('Using PostgreSQL (Supabase)');
   const { Pool } = require('pg');
   const dns = require('dns');
+  const net = require('net');
   
-  // Force IPv4 DNS resolution globally for this process
+  // Force IPv4 at DNS level - CRITICAL for Render+Supabase compatibility
   dns.setDefaultResultOrder('ipv4first');
+  
+  // Override net.createConnection to force IPv4
+  const originalCreateConnection = net.createConnection;
+  net.createConnection = function(options, callback) {
+    if (typeof options === 'object') {
+      options.family = 4; // Force IPv4
+      console.log('🔗 Creating connection with family=4 (IPv4 only)');
+    }
+    return originalCreateConnection.call(net, options, callback);
+  };
   
   // Use Pool instead of Client for better connection management
   let connectionString = process.env.DATABASE_URL;
@@ -19,7 +30,7 @@ if (process.env.DATABASE_URL) {
     connectionString += (connectionString.includes('?') ? '&' : '?') + 'sslmode=require';
   }
   
-  console.log('PostgreSQL connection string configured with SSL and IPv4 DNS resolution');
+  console.log('✓ PostgreSQL pool configured with forced IPv4');
   
   const pool = new Pool({
     connectionString,
@@ -29,8 +40,6 @@ if (process.env.DATABASE_URL) {
     connectionTimeoutMillis: 10000,
     keepalives: true,
     keepalivesIdleTimeout: 1000,
-    // Force IPv4 at socket level
-    family: 4,
   });
 
   pool.on('error', (err) => console.error('Unexpected error on idle client', err));
