@@ -1,3 +1,9 @@
+// Disable SSL certificate verification globally for development/Supabase pooler
+// This allows self-signed certificates from pooler.supabase.com
+if (process.env.NODE_ENV !== 'production' || process.env.DATABASE_URL?.includes('pooler')) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
