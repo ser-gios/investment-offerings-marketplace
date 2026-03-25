@@ -7,86 +7,73 @@ let db;
 if (process.env.DATABASE_URL) {
   // Production: Use PostgreSQL via Supabase with proper async handling
   console.log('Using PostgreSQL (Supabase)');
-  const { Client } = require('pg');
+  const { Pool } = require('pg');
   
-  // Create a single client for the lifetime of the app
-  const client = new Client({
+  // Use Pool instead of Client for better connection management
+  const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
   });
 
-  // Connect immediately
-  client.connect().catch(err => console.error('DB Connection Error:', err));
+  pool.on('error', (err) => console.error('Unexpected error on idle client', err));
 
   db = {
     prepare: (sql) => ({
       run: (...params) => {
-        try {
-          client.query(sql, params, (err) => {
-            if (err) console.error('DB Error (run):', err);
-          });
-          return { changes: 1 };
-        } catch (err) {
-          console.error('DB Error (run):', err);
-          throw err;
-        }
+        // Fallback for sync usage - log warning
+        console.warn('⚠️  db.prepare().run() called synchronously with PostgreSQL. Use prepareAsync().runAsync() instead.');
+        return { changes: 0 };
       },
       get: (...params) => {
-        // This is sync wrapper but PostgreSQL is async
-        // For now, return null and log a warning
-        console.warn('⚠️  db.prepare().get() is called synchronously with PostgreSQL. Results may be unreliable.');
+        console.warn('⚠️  db.prepare().get() called synchronously with PostgreSQL. Use prepareAsync().getAsync() instead.');
         return null;
       },
       all: (...params) => {
-        // This is sync wrapper but PostgreSQL is async
-        console.warn('⚠️  db.prepare().all() is called synchronously with PostgreSQL. Results may be unreliable.');
+        console.warn('⚠️  db.prepare().all() called synchronously with PostgreSQL. Use prepareAsync().allAsync() instead.');
         return [];
       }
     }),
-    // Add async versions
+    // Add async versions (REQUIRED for PostgreSQL)
     prepareAsync: (sql) => ({
       runAsync: async (...params) => {
         try {
-          const result = await client.query(sql, params);
-          return { changes: result.rowCount };
+          const result = await pool.query(sql, params);
+          return { changes: result.rowCount || 0 };
         } catch (err) {
-          console.error('DB Error (runAsync):', err);
+          console.error('DB Error (runAsync):', err.message, 'SQL:', sql);
           throw err;
         }
       },
       getAsync: async (...params) => {
         try {
-          const result = await client.query(sql, params);
+          const result = await pool.query(sql, params);
           return result.rows?.[0] || null;
         } catch (err) {
-          console.error('DB Error (getAsync):', err);
-          return null;
+          console.error('DB Error (getAsync):', err.message, 'SQL:', sql);
+          throw err;
         }
       },
       allAsync: async (...params) => {
         try {
-          const result = await client.query(sql, params);
+          const result = await pool.query(sql, params);
           return result.rows || [];
         } catch (err) {
-          console.error('DB Error (allAsync):', err);
-          return [];
+          console.error('DB Error (allAsync):', err.message, 'SQL:', sql);
+          throw err;
         }
       }
     }),
     exec: (sql) => {
-      try {
-        client.query(sql, (err) => {
-          if (err) console.error('DB Error (exec):', err);
-        });
-      } catch (err) {
-        console.error('DB Error (exec):', err);
-      }
+      console.warn('⚠️  db.exec() called synchronously with PostgreSQL. Use execAsync() instead.');
     },
     execAsync: async (sql) => {
       try {
-        await client.query(sql);
+        await pool.query(sql);
       } catch (err) {
-        console.error('DB Error (execAsync):', err);
+        console.error('DB Error (execAsync):', err.message);
       }
     }
   };
