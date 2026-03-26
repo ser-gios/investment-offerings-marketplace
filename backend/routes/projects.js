@@ -40,7 +40,13 @@ router.get('/', async (req, res) => {
     const projects = await dbAsync.queryAll(query, params);
     const result = [];
     for (const p of projects) {
-      const files = await dbAsync.queryAll('SELECT * FROM project_files WHERE project_id = ?', [p.id]);
+      let files = [];
+      try {
+        files = await dbAsync.queryAll('SELECT * FROM project_files WHERE project_id = ?', [p.id]);
+      } catch (e) {
+        // Table might not exist, continue without files
+        console.warn('Warning: project_files table not found, skipping files');
+      }
       const rating = await getProjectRating(p.id);
       result.push({
         ...p,
@@ -63,7 +69,12 @@ router.get('/:id', async (req, res) => {
     if (!p) return res.status(404).json({ error: 'Not found' });
     
     const ratings_list = await dbAsync.queryAll(`SELECT r.*, u.name as investor_name FROM ratings r JOIN users u ON r.investor_id = u.id WHERE r.project_id = ? ORDER BY r.created_at DESC`, [p.id]);
-    const files = await dbAsync.queryAll(`SELECT * FROM project_files WHERE project_id = ?`, [p.id]);
+    let files = [];
+    try {
+      files = await dbAsync.queryAll(`SELECT * FROM project_files WHERE project_id = ?`, [p.id]);
+    } catch (e) {
+      console.warn('Warning: project_files table not found, skipping files');
+    }
     const investors = await dbAsync.query(`SELECT COUNT(DISTINCT investor_id) as cnt FROM investments WHERE project_id = ? AND status = 'active'`, [p.id]);
     const rating = await getProjectRating(p.id);
     
