@@ -126,10 +126,9 @@ router.patch('/projects/:id/payment', async (req, res) => {
 // GET all payouts
 router.get('/payouts', async (req, res) => {
   try {
+    // Simple query without JOINs to avoid issues with missing foreign keys
     const payouts = await dbAsync.queryAll(`
-      SELECT pay.*, p.name as project_name, u.name as investor_name, u.email as investor_email
-      FROM payouts pay JOIN projects p ON pay.project_id = p.id JOIN users u ON pay.investor_id = u.id
-      ORDER BY pay.scheduled_date ASC
+      SELECT * FROM payouts ORDER BY scheduled_date ASC
     `, []);
     res.json(payouts || []);
   } catch (e) {
