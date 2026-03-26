@@ -5,9 +5,9 @@ const dbAsync = require('../db-wrapper');
 const { authenticate, requireRole } = require('../middleware/auth');
 
 // Compute composite rating for a project
-function getProjectRating(projectId) {
-  const ratings = db.prepare('SELECT * FROM ratings WHERE project_id = ?').all(projectId);
-  if (!ratings.length) return null;
+async function getProjectRating(projectId) {
+  const ratings = await dbAsync.queryAll('SELECT * FROM ratings WHERE project_id = ?', [projectId]);
+  if (!ratings || !ratings.length) return null;
   const avg = (key) => ratings.reduce((s, r) => s + r[key], 0) / ratings.length;
   return {
     payout_reliability: +avg('payout_reliability').toFixed(1),
@@ -18,46 +18,67 @@ function getProjectRating(projectId) {
 }
 
 // GET all active projects (marketplace) - only those with payment_status = 'paid'
-router.get('/', (req, res) => {
-  const { category, risk, freq, sort, search } = req.query;
-  let query = `SELECT p.*, u.name as business_name FROM projects p JOIN users u ON p.user_id = u.id WHERE p.status = 'active' AND p.payment_status = 'paid'`;
-  const params = [];
+router.get('/', async (req, res) => {
+  try {
+    const { category, risk, freq, sort, search } = req.query;
+    let query = `SELECT p.*, u.name as business_name FROM projects p JOIN users u ON p.user_id = u.id WHERE p.status = 'active' AND p.payment_status = 'paid'`;
+    const params = [];
 
-  if (category) { query += ` AND p.category = ?`; params.push(category); }
-  if (risk) { query += ` AND p.risk_level = ?`; params.push(risk); }
-  if (freq) { query += ` AND p.payout_frequency = ?`; params.push(freq); }
-  if (search) { query += ` AND (p.name LIKE ? OR p.description LIKE ?)`; params.push(`%${search}%`, `%${search}%`); }
+    if (category) { query += ` AND p.category = ?`; params.push(category); }
+    if (risk) { query += ` AND p.risk_level = ?`; params.push(risk); }
+    if (freq) { query += ` AND p.payout_frequency = ?`; params.push(freq); }
+    if (search) { query += ` AND (p.name LIKE ? OR p.description LIKE ?)`; params.push(`%${search}%`, `%${search}%`); }
 
-  const sortMap = {
-    'rate_desc': 'p.interest_rate DESC',
-    'rate_asc': 'p.interest_rate ASC',
-    'newest': 'p.created_at DESC',
-    'funded': '(p.funded_amount / p.total_pool) DESC',
-  };
-  query += ` ORDER BY ${sortMap[sort] || 'p.created_at DESC'}`;
+    const sortMap = {
+      'rate_desc': 'p.interest_rate DESC',
+      'rate_asc': 'p.interest_rate ASC',
+      'newest': 'p.created_at DESC',
+      'funded': '(p.funded_amount / p.total_pool) DESC',
+    };
+    query += ` ORDER BY ${sortMap[sort] || 'p.created_at DESC'}`;
 
-  const projects = db.prepare(query).all(...params);
-  const result = projects.map(p => ({
-    ...p,
-    rating: getProjectRating(p.id),
-    funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
-    files: db.prepare(`SELECT * FROM project_files WHERE project_id = ?`).all(p.id),
-  }));
-  res.json(result);
+    const projects = await dbAsync.queryAll(query, params);
+    const result = [];
+    for (const p of projects) {
+      const files = await dbAsync.queryAll('SELECT * FROM project_files WHERE project_id = ?', [p.id]);
+      const rating = await getProjectRating(p.id);
+      result.push({
+        ...p,
+        rating: rating,
+        funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
+        files: files || [],
+      });
+    }
+    res.json(result);
+  } catch (e) {
+    console.error('Get projects error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET single project
-router.get('/:id', (req, res) => {
-  const p = db.prepare(`SELECT p.*, u.name as business_name, u.email as business_email FROM projects p JOIN users u ON p.user_id = u.id WHERE p.id = ?`).get(req.params.id);
-  if (!p) return res.status(404).json({ error: 'Not found' });
-  res.json({
-    ...p,
-    rating: getProjectRating(p.id),
-    ratings_list: db.prepare(`SELECT r.*, u.name as investor_name FROM ratings r JOIN users u ON r.investor_id = u.id WHERE r.project_id = ? ORDER BY r.created_at DESC`).all(p.id),
-    funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
-    files: db.prepare(`SELECT * FROM project_files WHERE project_id = ?`).all(p.id),
-    investors_count: db.prepare(`SELECT COUNT(DISTINCT investor_id) as cnt FROM investments WHERE project_id = ? AND status = 'active'`).get(p.id)?.cnt || 0,
-  });
+router.get('/:id', async (req, res) => {
+  try {
+    const p = await dbAsync.query(`SELECT p.*, u.name as business_name, u.email as business_email FROM projects p JOIN users u ON p.user_id = u.id WHERE p.id = ?`, [req.params.id]);
+    if (!p) return res.status(404).json({ error: 'Not found' });
+    
+    const ratings_list = await dbAsync.queryAll(`SELECT r.*, u.name as investor_name FROM ratings r JOIN users u ON r.investor_id = u.id WHERE r.project_id = ? ORDER BY r.created_at DESC`, [p.id]);
+    const files = await dbAsync.queryAll(`SELECT * FROM project_files WHERE project_id = ?`, [p.id]);
+    const investors = await dbAsync.query(`SELECT COUNT(DISTINCT investor_id) as cnt FROM investments WHERE project_id = ? AND status = 'active'`, [p.id]);
+    const rating = await getProjectRating(p.id);
+    
+    res.json({
+      ...p,
+      rating: rating,
+      ratings_list: ratings_list || [],
+      funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
+      files: files || [],
+      investors_count: investors?.cnt || 0,
+    });
+  } catch (e) {
+    console.error('Get project error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST create project (business only)
