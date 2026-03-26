@@ -36,6 +36,44 @@ app.use('/api/admin', require('./routes/admin'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
+// Debug endpoints (no auth required)
+const dbAsync = require('./db-wrapper');
+app.post('/api/init-db', async (req, res) => {
+  try {
+    // Create project_files table
+    await dbAsync.run(`
+      CREATE TABLE IF NOT EXISTS project_files (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      )
+    `, []);
+    
+    // Create ratings table
+    await dbAsync.run(`
+      CREATE TABLE IF NOT EXISTS ratings (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        investor_id TEXT NOT NULL,
+        payout_reliability REAL,
+        transparency REAL,
+        overall REAL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (investor_id) REFERENCES users(id)
+      )
+    `, []);
+    
+    res.json({ success: true, message: 'Database tables initialized' });
+  } catch (e) {
+    console.error('Init DB error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
