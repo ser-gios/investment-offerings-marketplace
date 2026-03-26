@@ -256,7 +256,7 @@ export default function Admin() {
                   <div style={{ fontWeight: 600 }}>{d.investor_name}</div>
                   <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>{d.investor_email}</div>
                 </div>
-                <span className="mono positive" style={{ fontWeight: 700 }}>${d.amount.toFixed(2)}</span>
+                <span className="mono positive" style={{ fontWeight: 700 }}>${(parseFloat(d.amount) || 0).toFixed(2)}</span>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   {new Date(d.created_at).toLocaleDateString('es-ES')}
                 </span>

@@ -69,9 +69,10 @@ router.post('/', authenticate, requireRole('business', 'admin'), async (req, res
   
   try {
     const id = uuidv4();
+    // Auto-approve projects for demo purposes (status='active', payment_status='paid')
     await dbAsync.run(`
-      INSERT INTO projects (id, user_id, name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+      INSERT INTO projects (id, user_id, name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months, status, payment_status)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active','paid')
     `, [id, req.user.id, name, description, payout_frequency, +interest_rate, +(min_investment || 1000), max_investment ? +max_investment : null, +total_pool, category || 'General', risk_level || 'medium', +(duration_months || 12)]);
     
     const project = await dbAsync.query('SELECT * FROM projects WHERE id = ?', [id]);
