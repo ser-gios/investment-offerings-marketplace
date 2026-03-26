@@ -4,7 +4,19 @@ import api from '../api';
 import StatCard from '../components/StatCard';
 import RatingStars from '../components/RatingStars';
 import { useLang } from '../context/LangContext';
-import { Users, BarChart2, DollarSign, Clock, Shield, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Users, BarChart2, DollarSign, Clock, Shield, CheckCircle, XCircle, Eye, Trash2 } from 'lucide-react';
+
+const CATEGORIES_EN = ['All', 'Energy', 'Logistics', 'Agriculture', 'Real Estate', 'Finance', 'Technology', 'Healthcare'];
+const categoryColors = {
+  'Energy': '#4ADE80',
+  'Logistics': '#60A5FA',
+  'Agriculture': '#34D399',
+  'Real Estate': '#FBBF24',
+  'Finance': '#F87171',
+  'Technology': '#A78BFA',
+  'Healthcare': '#FB7185',
+  'General': '#9CA3AF'
+};
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -23,6 +35,7 @@ export default function Admin() {
   const [payouts, setPayouts] = useState([]);
   const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoryFilter, setCategoryFilter] = useState('All');
 
   useEffect(() => {
     Promise.all([api.get('/admin/stats'), api.get('/admin/projects'), api.get('/admin/users'), api.get('/admin/payouts'), api.get('/admin/deposits')])
@@ -42,6 +55,15 @@ export default function Admin() {
   const updatePayout = async (id, status) => {
     await api.patch(`/admin/payouts/${id}`, { status });
     setPayouts(ps => ps.map(p => p.id === id ? { ...p, status } : p));
+  };
+  const deleteProject = async (id) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este proyecto?')) return;
+    try {
+      await api.delete(`/admin/projects/${id}`);
+      setProjects(ps => ps.filter(p => p.id !== id));
+    } catch (e) {
+      alert('Error: ' + (e.response?.data?.error || e.message));
+    }
   };
 
   const Badge = ({ status }) => {
@@ -93,7 +115,10 @@ export default function Admin() {
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)' }}><h3 style={{ fontSize: '1.1rem' }}>{t('admin_recent_projects')}</h3></div>
             {stats.recent_projects?.map(p => (
               <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.9rem 1.5rem', borderBottom: '1px solid var(--border)', fontSize: '0.875rem' }}>
-                <div><span style={{ fontWeight: 600 }}>{p.name}</span><span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem', fontSize: '0.78rem' }}>{p.business_name}</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                  <div style={{ width: 4, height: 24, borderRadius: 99, background: categoryColors[p.category] || categoryColors['General'] }} />
+                  <div><span style={{ fontWeight: 600 }}>{p.name}</span><span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem', fontSize: '0.78rem' }}>{p.business_name}</span></div>
+                </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                   <span className="mono" style={{ background: 'var(--grad-yellow-text)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontWeight: 700 }}>{p.interest_rate}%</span>
                   <Badge status={p.status} />
@@ -106,18 +131,49 @@ export default function Admin() {
 
       {tab === 'projects' && (
         <div className="card">
-          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)' }}><h3 style={{ fontSize: '1.1rem' }}>{t('admin_all_projects')} ({projects.length})</h3></div>
+          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>{t('admin_all_projects')} ({projects.filter(p => categoryFilter === 'All' || p.category === categoryFilter).length})</h3>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {CATEGORIES_EN.map(cat => (
+                <button key={cat} onClick={() => setCategoryFilter(cat)} style={{
+                  padding: '0.4rem 0.8rem',
+                  borderRadius: '99px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  border: categoryFilter === cat ? '2px solid var(--border)' : '1px solid var(--border)',
+                  background: categoryFilter === cat ? 'var(--surface-2)' : 'transparent',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer'
+                }}>{cat}</button>
+              ))}
+            </div>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 180px', gap: '1rem', padding: '0.55rem 1.25rem', fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', background: 'var(--obsidian)', borderBottom: '1px solid var(--border)', fontWeight: 700 }}>
             {[t('admin_project_col'), t('admin_rate_col'), t('admin_funded_col'), t('admin_investors_col'), t('admin_status_col'), 'Pago', t('admin_actions_col')].map(h => <span key={h}>{h}</span>)}
           </div>
-          {projects.map(p => (
+          {projects.filter(p => categoryFilter === 'All' || p.category === categoryFilter).map(p => (
             <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 180px', gap: '1rem', padding: '0.9rem 1.25rem', alignItems: 'center', borderBottom: '1px solid var(--border)', fontSize: '0.875rem' }}>
-              <div><div style={{ fontWeight: 600 }}>{p.name}</div><div style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>{p.business_name}</div></div>
+              <div>
+                <div style={{ fontWeight: 600 }}>{p.name}</div>
+                <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  {p.business_name}
+                  <span style={{
+                    marginLeft: '0.4rem',
+                    display: 'inline-block',
+                    padding: '0.2rem 0.45rem',
+                    borderRadius: '4px',
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    background: categoryColors[p.category] + '25',
+                    color: categoryColors[p.category]
+                  }}>{p.category}</span>
+                </div>
+              </div>
               <span className="mono" style={{ background: 'var(--grad-yellow-text)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontWeight: 700 }}>{p.interest_rate}%</span>
               <div>
                 <div className="mono" style={{ fontSize: '0.82rem', fontWeight: 600 }}>{p.funding_pct}%</div>
                 <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 99, marginTop: '0.2rem' }}>
-                  <div style={{ height: '100%', borderRadius: 99, width: `${p.funding_pct}%`, background: 'var(--grad-yellow)' }} />
+                  <div style={{ height: '100%', borderRadius: 99, width: `${p.funding_pct}%`, background: categoryColors[p.category] || categoryColors['General'] }} />
                 </div>
               </div>
               <span className="mono">{p.investors_count}</span>
@@ -131,6 +187,7 @@ export default function Admin() {
               <div style={{ display: 'flex', gap: '0.25rem' }}>
                 {p.payment_status === 'pending' && <button className="btn btn-success" style={{ padding: '0.25rem 0.5rem', fontSize: '0.68rem' }} onClick={() => api.patch(`/admin/projects/${p.id}/payment`, { payment_status: 'paid' }).then(() => location.reload())}><CheckCircle size={10} /> Aprobar</button>}
                 <button className="btn btn-ghost" style={{ padding: '0.25rem 0.5rem', fontSize: '0.68rem' }} onClick={() => navigate(`/offering/${p.id}`)}><Eye size={10} /></button>
+                <button className="btn btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.68rem' }} onClick={() => deleteProject(p.id)}><Trash2 size={10} /></button>
               </div>
             </div>
           ))}

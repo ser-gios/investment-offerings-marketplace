@@ -123,6 +123,24 @@ router.patch('/projects/:id/payment', async (req, res) => {
   }
 });
 
+// DELETE project
+router.delete('/projects/:id', async (req, res) => {
+  try {
+    // Check if project has investments
+    const investments = await dbAsync.query('SELECT COUNT(*) as cnt FROM investments WHERE project_id = ?', [req.params.id]);
+    if (investments?.cnt > 0) {
+      return res.status(400).json({ error: 'Cannot delete project with active investments' });
+    }
+    
+    // Delete project
+    await dbAsync.run('DELETE FROM projects WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Delete project error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET all payouts
 router.get('/payouts', async (req, res) => {
   try {
