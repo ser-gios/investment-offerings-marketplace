@@ -150,7 +150,7 @@ export default function OfferingDetail() {
           <div className="card" style={{ padding: '1.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <h3 style={{ fontSize: '1.25rem' }}>{t('detail_ratings')}</h3>
-              {user?.role === 'investor' && (
+              {user && (
                 <button className="btn btn-ghost" onClick={() => setShowRatingForm(s => !s)} style={{ fontSize: '0.8rem' }}>
                   <Star size={13} /> {t('detail_rate_btn')}
                 </button>
