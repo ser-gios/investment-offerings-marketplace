@@ -170,53 +170,6 @@ router.patch('/payouts/:id', async (req, res) => {
   }
 });
 
-// DEBUG: Get raw project count
-router.get('/debug/project-count', async (req, res) => {
-  try {
-    const all = await dbAsync.query('SELECT COUNT(*) as cnt FROM projects', []);
-    const active = await dbAsync.query('SELECT COUNT(*) as cnt FROM projects WHERE status = ? AND payment_status = ?', ['active', 'paid']);
-    res.json({ all_projects: all?.cnt || 0, active_projects: active?.cnt || 0 });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// DEBUG: Create missing tables
-router.post('/debug/init-tables', async (req, res) => {
-  try {
-    // Create project_files table if it doesn't exist
-    await dbAsync.run(`
-      CREATE TABLE IF NOT EXISTS project_files (
-        id TEXT PRIMARY KEY,
-        project_id TEXT NOT NULL,
-        file_name TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        created_at TEXT DEFAULT NOW(),
-        FOREIGN KEY (project_id) REFERENCES projects(id)
-      )
-    `, []);
-    
-    // Create other missing tables as needed
-    await dbAsync.run(`
-      CREATE TABLE IF NOT EXISTS ratings (
-        id TEXT PRIMARY KEY,
-        project_id TEXT NOT NULL,
-        investor_id TEXT NOT NULL,
-        payout_reliability REAL,
-        transparency REAL,
-        overall REAL,
-        created_at TEXT DEFAULT NOW(),
-        FOREIGN KEY (project_id) REFERENCES projects(id),
-        FOREIGN KEY (investor_id) REFERENCES users(id)
-      )
-    `, []);
-    
-    res.json({ success: true, message: 'Tables initialized' });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
 // GET all deposits with user info
 router.get('/deposits', async (req, res) => {
   try {
