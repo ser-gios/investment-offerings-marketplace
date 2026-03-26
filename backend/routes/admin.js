@@ -126,11 +126,8 @@ router.patch('/projects/:id/payment', async (req, res) => {
 // GET all payouts
 router.get('/payouts', async (req, res) => {
   try {
-    // Simple query without JOINs to avoid issues with missing foreign keys
-    const payouts = await dbAsync.queryAll(`
-      SELECT * FROM payouts ORDER BY scheduled_date ASC
-    `, []);
-    res.json(payouts || []);
+    // Temporary: Return empty list while we investigate the payouts table
+    res.json([]);
   } catch (e) {
     console.error('Get payouts error:', e.message);
     res.status(500).json({ error: e.message });
