@@ -84,19 +84,27 @@ router.post('/', authenticate, requireRole('business', 'admin'), async (req, res
 });
 
 // PATCH update project
-router.patch('/:id', authenticate, (req, res) => {
-  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
-  if (!project) return res.status(404).json({ error: 'Not found' });
-  if (project.user_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+router.patch('/:id', authenticate, async (req, res) => {
+  try {
+    const project = await dbAsync.query('SELECT * FROM projects WHERE id = ?', [req.params.id]);
+    if (!project) return res.status(404).json({ error: 'Not found' });
+    if (project.user_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
 
-  const allowed = ['name', 'description', 'status', 'risk_level', 'category'];
-  const updates = Object.keys(req.body).filter(k => allowed.includes(k));
-  if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
+    const allowed = ['name', 'description', 'status', 'risk_level', 'category'];
+    const updates = Object.keys(req.body).filter(k => allowed.includes(k));
+    if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
 
-  const set = updates.map(k => `${k} = ?`).join(', ');
-  const vals = updates.map(k => req.body[k]);
-  db.prepare(`UPDATE projects SET ${set}, updated_at = datetime('now') WHERE id = ?`).run(...vals, req.params.id);
-  res.json(db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id));
+    const now = new Date().toISOString();
+    const set = updates.map((k, i) => `${k} = $${i+1}`).join(', ');
+    const vals = updates.map(k => req.body[k]);
+    await dbAsync.run(`UPDATE projects SET ${set}, updated_at = $${vals.length + 1} WHERE id = $${vals.length + 2}`, [...vals, now, req.params.id]);
+    
+    const updated = await dbAsync.query('SELECT * FROM projects WHERE id = ?', [req.params.id]);
+    res.json(updated);
+  } catch (e) {
+    console.error('Update project error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET my projects (business)

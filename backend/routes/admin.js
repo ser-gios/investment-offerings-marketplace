@@ -95,7 +95,8 @@ router.patch('/projects/:id/status', async (req, res) => {
     const { status } = req.body;
     const allowed = ['pending', 'active', 'closed', 'suspended'];
     if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-    await dbAsync.run("UPDATE projects SET status = ?, updated_at = datetime('now') WHERE id = ?", [status, req.params.id]);
+    const now = new Date().toISOString();
+    await dbAsync.run("UPDATE projects SET status = ?, updated_at = ? WHERE id = ?", [status, now, req.params.id]);
     res.json({ status });
   } catch (e) {
     console.error('Update project status error:', e.message);
@@ -110,11 +111,13 @@ router.patch('/projects/:id/payment', async (req, res) => {
     const allowed = ['pending', 'paid'];
     if (!allowed.includes(payment_status)) return res.status(400).json({ error: 'Invalid payment status' });
     
+    const now = new Date().toISOString();
+    
     // When payment is approved, also activate the project
     if (payment_status === 'paid') {
-      await dbAsync.run("UPDATE projects SET payment_status = ?, status = 'active', updated_at = datetime('now') WHERE id = ?", [payment_status, req.params.id]);
+      await dbAsync.run("UPDATE projects SET payment_status = ?, status = 'active', updated_at = ? WHERE id = ?", [payment_status, now, req.params.id]);
     } else {
-      await dbAsync.run("UPDATE projects SET payment_status = ?, updated_at = datetime('now') WHERE id = ?", [payment_status, req.params.id]);
+      await dbAsync.run("UPDATE projects SET payment_status = ?, updated_at = ? WHERE id = ?", [payment_status, now, req.params.id]);
     }
     res.json({ payment_status });
   } catch (e) {
@@ -158,7 +161,8 @@ router.patch('/payouts/:id', async (req, res) => {
     const { status } = req.body;
     const allowed = ['pending', 'processed', 'failed'];
     if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-    await dbAsync.run("UPDATE payouts SET status = ?, processed_date = datetime('now') WHERE id = ?", [status, req.params.id]);
+    const now = new Date().toISOString();
+    await dbAsync.run("UPDATE payouts SET status = ?, processed_date = ? WHERE id = ?", [status, now, req.params.id]);
     res.json({ status });
   } catch (e) {
     console.error('Update payout status error:', e.message);
