@@ -35,85 +35,136 @@ router.get('/stats', async (req, res) => {
 });
 
 // GET all users
-router.get('/users', (req, res) => {
-  const users = db.prepare('SELECT id, email, name, role, created_at, is_active FROM users ORDER BY created_at DESC').all();
-  res.json(users.map(u => ({
-    ...u,
-    investments_count: db.prepare('SELECT COUNT(*) as cnt FROM investments WHERE investor_id = ?').get(u.id).cnt,
-    projects_count: db.prepare('SELECT COUNT(*) as cnt FROM projects WHERE user_id = ?').get(u.id).cnt,
-  })));
+router.get('/users', async (req, res) => {
+  try {
+    const users = await dbAsync.queryAll('SELECT id, email, name, role, created_at, is_active FROM users ORDER BY created_at DESC', []);
+    const result = [];
+    for (const u of users) {
+      const invCount = await dbAsync.query('SELECT COUNT(*) as cnt FROM investments WHERE investor_id = ?', [u.id]);
+      const projCount = await dbAsync.query('SELECT COUNT(*) as cnt FROM projects WHERE user_id = ?', [u.id]);
+      result.push({
+        ...u,
+        investments_count: invCount?.cnt || 0,
+        projects_count: projCount?.cnt || 0,
+      });
+    }
+    res.json(result);
+  } catch (e) {
+    console.error('Get users error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // PATCH toggle user active
-router.patch('/users/:id/toggle', (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
-  if (!user) return res.status(404).json({ error: 'Not found' });
-  db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(user.is_active ? 0 : 1, user.id);
-  res.json({ is_active: !user.is_active });
+router.patch('/users/:id/toggle', async (req, res) => {
+  try {
+    const user = await dbAsync.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    if (!user) return res.status(404).json({ error: 'Not found' });
+    await dbAsync.run('UPDATE users SET is_active = ? WHERE id = ?', [user.is_active ? 0 : 1, user.id]);
+    res.json({ is_active: !user.is_active });
+  } catch (e) {
+    console.error('Toggle user error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET all projects
-router.get('/projects', (req, res) => {
-  const projects = db.prepare(`SELECT p.*, u.name as business_name FROM projects p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC`).all();
-  res.json(projects.map(p => ({
-    ...p,
-    investors_count: db.prepare("SELECT COUNT(DISTINCT investor_id) as cnt FROM investments WHERE project_id = ? AND status='active'").get(p.id).cnt,
-    funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
-    payment_status: p.payment_status || 'pending',
-  })));
+router.get('/projects', async (req, res) => {
+  try {
+    const projects = await dbAsync.queryAll(`SELECT p.*, u.name as business_name FROM projects p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC`, []);
+    const result = [];
+    for (const p of projects) {
+      const invCount = await dbAsync.query("SELECT COUNT(DISTINCT investor_id) as cnt FROM investments WHERE project_id = ? AND status='active'", [p.id]);
+      result.push({
+        ...p,
+        investors_count: invCount?.cnt || 0,
+        funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
+        payment_status: p.payment_status || 'pending',
+      });
+    }
+    res.json(result);
+  } catch (e) {
+    console.error('Get projects error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // PATCH project status
-router.patch('/projects/:id/status', (req, res) => {
-  const { status } = req.body;
-  const allowed = ['pending', 'active', 'closed', 'suspended'];
-  if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-  db.prepare("UPDATE projects SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, req.params.id);
-  res.json({ status });
+router.patch('/projects/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['pending', 'active', 'closed', 'suspended'];
+    if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    await dbAsync.run("UPDATE projects SET status = ?, updated_at = datetime('now') WHERE id = ?", [status, req.params.id]);
+    res.json({ status });
+  } catch (e) {
+    console.error('Update project status error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // PATCH project payment status (approve/reject payment)
-router.patch('/projects/:id/payment', (req, res) => {
-  const { payment_status } = req.body;
-  const allowed = ['pending', 'paid'];
-  if (!allowed.includes(payment_status)) return res.status(400).json({ error: 'Invalid payment status' });
-  
-  // When payment is approved, also activate the project
-  if (payment_status === 'paid') {
-    db.prepare("UPDATE projects SET payment_status = ?, status = 'active', updated_at = datetime('now') WHERE id = ?").run(payment_status, req.params.id);
-  } else {
-    db.prepare("UPDATE projects SET payment_status = ?, updated_at = datetime('now') WHERE id = ?").run(payment_status, req.params.id);
+router.patch('/projects/:id/payment', async (req, res) => {
+  try {
+    const { payment_status } = req.body;
+    const allowed = ['pending', 'paid'];
+    if (!allowed.includes(payment_status)) return res.status(400).json({ error: 'Invalid payment status' });
+    
+    // When payment is approved, also activate the project
+    if (payment_status === 'paid') {
+      await dbAsync.run("UPDATE projects SET payment_status = ?, status = 'active', updated_at = datetime('now') WHERE id = ?", [payment_status, req.params.id]);
+    } else {
+      await dbAsync.run("UPDATE projects SET payment_status = ?, updated_at = datetime('now') WHERE id = ?", [payment_status, req.params.id]);
+    }
+    res.json({ payment_status });
+  } catch (e) {
+    console.error('Update payment status error:', e.message);
+    res.status(500).json({ error: e.message });
   }
-  res.json({ payment_status });
 });
 
 // GET all payouts
-router.get('/payouts', (req, res) => {
-  const payouts = db.prepare(`
-    SELECT pay.*, p.name as project_name, u.name as investor_name, u.email as investor_email
-    FROM payouts pay JOIN projects p ON pay.project_id = p.id JOIN users u ON pay.investor_id = u.id
-    ORDER BY pay.scheduled_date ASC
-  `).all();
-  res.json(payouts);
+router.get('/payouts', async (req, res) => {
+  try {
+    const payouts = await dbAsync.queryAll(`
+      SELECT pay.*, p.name as project_name, u.name as investor_name, u.email as investor_email
+      FROM payouts pay JOIN projects p ON pay.project_id = p.id JOIN users u ON pay.investor_id = u.id
+      ORDER BY pay.scheduled_date ASC
+    `, []);
+    res.json(payouts || []);
+  } catch (e) {
+    console.error('Get payouts error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // PATCH payout status
-router.patch('/payouts/:id', (req, res) => {
-  const { status } = req.body;
-  const allowed = ['pending', 'processed', 'failed'];
-  if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-  db.prepare("UPDATE payouts SET status = ?, processed_date = datetime('now') WHERE id = ?").run(status, req.params.id);
-  res.json({ status });
+router.patch('/payouts/:id', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['pending', 'processed', 'failed'];
+    if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    await dbAsync.run("UPDATE payouts SET status = ?, processed_date = datetime('now') WHERE id = ?", [status, req.params.id]);
+    res.json({ status });
+  } catch (e) {
+    console.error('Update payout status error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET all deposits with user info
-router.get('/deposits', (req, res) => {
-  const deposits = db.prepare(`
-    SELECT d.*, u.name as investor_name, u.email as investor_email
-    FROM deposits d JOIN users u ON d.investor_id = u.id
-    ORDER BY d.created_at DESC
-  `).all();
-  res.json(deposits);
+router.get('/deposits', async (req, res) => {
+  try {
+    const deposits = await dbAsync.queryAll(`
+      SELECT d.*, u.name as investor_name, u.email as investor_email
+      FROM deposits d JOIN users u ON d.investor_id = u.id
+      ORDER BY d.created_at DESC
+    `, []);
+    res.json(deposits || []);
+  } catch (e) {
+    console.error('Get deposits error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;
