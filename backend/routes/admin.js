@@ -170,6 +170,17 @@ router.patch('/payouts/:id', async (req, res) => {
   }
 });
 
+// DEBUG: Get raw project count
+router.get('/debug/project-count', async (req, res) => {
+  try {
+    const all = await dbAsync.query('SELECT COUNT(*) as cnt FROM projects', []);
+    const active = await dbAsync.query('SELECT COUNT(*) as cnt FROM projects WHERE status = ? AND payment_status = ?', ['active', 'paid']);
+    res.json({ all_projects: all?.cnt || 0, active_projects: active?.cnt || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET all deposits with user info
 router.get('/deposits', async (req, res) => {
   try {
