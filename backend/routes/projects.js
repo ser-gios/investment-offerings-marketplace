@@ -50,6 +50,7 @@ router.get('/', async (req, res) => {
       const rating = await getProjectRating(p.id);
       result.push({
         ...p,
+        interest_rate: +p.interest_rate || 0,
         rating: rating,
         funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,
         files: files || [],
@@ -80,6 +81,7 @@ router.get('/:id', async (req, res) => {
     
     res.json({
       ...p,
+      interest_rate: +p.interest_rate || 0,
       rating: rating,
       ratings_list: ratings_list || [],
       funding_pct: p.total_pool > 0 ? +((p.funded_amount / p.total_pool) * 100).toFixed(1) : 0,

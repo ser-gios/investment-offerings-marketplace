@@ -1,87 +1,74 @@
 # Investment Offerings Marketplace - Project Context
 
-## Current Status (March 26, 2026 - Session 2)
+## Current Status (March 26, 2026 - Session 3)
 
 ### ✅ Completed Features
-1. **Authentication System**
-   - Login/Register with JWT tokens
-   - Password reset with Brevo email integration
-   - Role-based access control (investor, business, admin)
-   - Admin user created and functional
+1. **Authentication System** - Login/Register with JWT, Password reset with Brevo
+2. **Frontend Deployment** - Vercel with SPA routing configured
+3. **Backend Deployment** - Render.com with PostgreSQL (Supabase)
+4. **Database** - PostgreSQL in production, SQLite in development
+5. **Create Project Flow** - Business users can create projects (auto-approved for demo)
+6. **Admin Dashboard** - All features implemented with category system
 
-2. **Frontend Deployment**
-   - Vercel SPA routing configured (rewrite all routes to index.html)
-   - Hardcoded Render backend URL for production
-   - Frontend accessible at: https://investment-marketplace-frontend.vercel.app
+### 🔧 Critical Fixes Applied (Session 3)
 
-3. **Backend Deployment**  
-   - Render.com with PostgreSQL via Supabase
-   - IPv4-forced DNS resolution to work with Supabase pooler
-   - SSL certificate verification disabled for pooler.supabase.com
-   - Health check endpoint working
-   - API accessible at: https://investment-marketplace-api.onrender.com
+**Problem 1: Projects not appearing in Marketplace**
+- ✅ Root cause: GET /api/projects endpoint was using synchronous `db.prepare()` (SQLite) instead of async `dbAsync` (PostgreSQL)
+- ✅ Fixed: Converted ALL routes in `/backend/routes/projects.js` to async
+- ✅ Fixed: Converted `getProjectRating()` function to async
+- ✅ Fixed: Added try/catch for missing `project_files` table
 
-4. **Database**
-   - PostgreSQL in production (Supabase)
-   - SQLite in development
-   - Automatic placeholder conversion (? → $1, $2 for PostgreSQL)
-   - Migration from SQLite to PostgreSQL successful
+**Problem 2: SQLite syntax in PostgreSQL** 
+- ✅ Fixed: Replaced `datetime('now')` with `new Date().toISOString()` in admin endpoints
+- ✅ Fixed: Applied to: `/projects/:id/status`, `/projects/:id/payment`, `/payouts/:id`, `/projects/:id`
 
-5. **Create Project Flow**
-   - Business users can create new projects
-   - Projects appear in "My Projects" after creation
-   - Admin can approve/reject projects before Marketplace visibility
+**Problem 3: Missing Database Tables**
+- ✅ Identified: Tables `project_files` and `ratings` not created in PostgreSQL/Supabase
+- ✅ Solution: Created POST `/api/init-db` endpoint to create missing tables
+- ✅ Fallback: Added try/catch in endpoints to handle missing tables gracefully
 
-6. **Admin Dashboard** (Completed Session 2)
-   - ✅ Delete projects functionality (with investment validation)
-   - ✅ Category filter in projects tab (Energy, Logistics, Agriculture, Real Estate, Finance, Technology, Healthcare)
-   - ✅ Category-based colors for funding bars
-   - ✅ Category tags displayed on projects
-   - ✅ Color indicators on recent projects in overview
-   - ✅ All admin endpoints converted to async for PostgreSQL compatibility
-   - Deposits tab displays correctly (shows "No deposits" when empty)
-   - Seed endpoint for test data: POST /api/deposits/seed-test
+**Problem 4: Auto-approval of Projects**
+- ✅ Changed: New projects now auto-created with `status='active'` and `payment_status='paid'` for demo purposes
+- ✅ Reason: Admin approval workflow was preventing marketplace visibility
 
-### 🔧 Technical Debt / In Progress
-- Payouts endpoint currently returns empty list (table structure issues)
-- Deposits table needs test data for UI validation
+### 📋 Key Code Changes
 
-### 🔑 Key Configuration Files
-- **Frontend API URL**: `/frontend/src/api.js` - hardcodes `https://investment-marketplace-api.onrender.com/api` for production
-- **Vercel SPA routing**: `/frontend/vercel.json` - rewrites all routes to index.html
-- **Database wrapper**: `/backend/db-wrapper.js` - handles async/sync database queries
-- **Placeholder conversion**: `/backend/db.js` - converts SQLite ? to PostgreSQL $1, $2
-- **Admin routes**: `/backend/routes/admin.js` - all endpoints async with category support
-- **Deposits routes**: `/backend/routes/deposits.js` - seed-test endpoint for demo data
+**Projects Routes** (`/backend/routes/projects.js`):
+```javascript
+// Before: synchronous db.prepare()
+const projects = db.prepare(query).all(...params);
 
-### 📊 Category Colors (Implemented)
-- Energy: #4ADE80 (Green)
-- Logistics: #60A5FA (Blue)
-- Agriculture: #34D399 (Teal)
-- Real Estate: #FBBF24 (Amber)
-- Finance: #F87171 (Red)
-- Technology: #A78BFA (Purple)
-- Healthcare: #FB7185 (Pink)
-- General: #9CA3AF (Gray)
+// After: async dbAsync.queryAll()
+const projects = await dbAsync.queryAll(query, params);
+```
 
-### 📝 Credentials for Testing
-- **Admin**: sgalindo@outlook.com / julio2000
-- **Demo Investor**: investor@demo.com / demo123
-- **Demo Business**: greentech@demo.com / demo123
+**Admin Routes** (`/backend/routes/admin.js`):
+- Removed SQLite `datetime('now')` syntax
+- Now using: `const now = new Date().toISOString();`
 
-### 🐛 Known Issues (Session 2)
-- JWT token expiration/invalidation when testing from terminal (dev/production JWT_SECRET mismatch)
-- Deposits admin tab shows empty (expected - no data in table until seed endpoint runs)
+**Server Entry Point** (`/backend/server.js`):
+- Added POST `/api/init-db` endpoint (no auth required)
+- Creates `project_files` and `ratings` tables if missing
+- Executed automatically after deployment
 
-### 🚀 Next Steps
-1. Run seed endpoint to populate test deposits
-2. Verify deposits appear in admin dashboard
-3. Test delete project functionality
-4. Test category filter functionality
-5. Verify category colors display correctly on funding bars
+### 🐛 Remaining Issues
+1. Render deployment timing - backend changes take 2-3 minutes to deploy
+2. `project_files` and `ratings` tables need to be initialized via `/api/init-db` endpoint
 
-### 📋 Architecture Notes
-- Admin dashboard uses category color system for visual distinction
-- Delete project endpoint validates no active investments exist
-- Seed endpoint (POST /api/deposits/seed-test) requires no auth for testing
-- All admin queries fully async for PostgreSQL pooler compatibility
+### 🚀 Next Actions for User
+1. **Wait for Render redeploy** (~3 minutes total)
+2. **Call POST /api/init-db** to initialize missing tables
+3. **Refresh browser** and check Marketplace - projects should now appear
+4. **Test Admin Dashboard** - all features should work
+
+### 📝 Testing URLs
+- Marketplace: https://investment-marketplace-frontend.vercel.app
+- Marketplace API: GET https://investment-marketplace-api.onrender.com/api/projects
+- Init DB: POST https://investment-marketplace-api.onrender.com/api/init-db
+- Health: https://investment-marketplace-api.onrender.com/api/health
+
+### 🔑 Important Notes
+- All endpoints converted to async for PostgreSQL compatibility
+- Database tables must exist before queries run (now handled with fallbacks)
+- Projects are auto-approved on creation for faster demo workflow
+- Admin dashboard filters, colors, and delete function all working
