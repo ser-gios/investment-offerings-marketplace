@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
+const dbAsync = require('../db-wrapper');
 const { authenticate, requireRole } = require('../middleware/auth');
 
 // Calculate interest earned based on frequency and time
@@ -15,33 +16,38 @@ function calcInterest(amount, rate, purchasedAt, frequency) {
 }
 
 // GET my portfolio
-router.get('/portfolio', authenticate, (req, res) => {
-  const investments = db.prepare(`
-    SELECT i.*, p.name as project_name, p.interest_rate, p.payout_frequency, p.risk_level, p.category, p.status as project_status
-    FROM investments i JOIN projects p ON i.project_id = p.id
-    WHERE i.investor_id = ? ORDER BY i.created_at DESC
-  `).all(req.user.id);
+router.get('/portfolio', authenticate, async (req, res) => {
+  try {
+    const investments = await dbAsync.queryAll(`
+      SELECT i.*, p.name as project_name, p.interest_rate, p.payout_frequency, p.risk_level, p.category, p.status as project_status
+      FROM investments i JOIN projects p ON i.project_id = p.id
+      WHERE i.investor_id = ? ORDER BY i.created_at DESC
+    `, [req.user.id]);
 
-  const enriched = investments.map(inv => {
-    const earned = calcInterest(inv.amount, inv.interest_rate, inv.created_at, inv.payout_frequency);
-    const currentValue = +(inv.amount + earned).toFixed(2);
-    return { ...inv, interest_earned: earned, current_value: currentValue };
-  });
+    const enriched = (investments || []).map(inv => {
+      const earned = calcInterest(inv.amount, +inv.interest_rate || 0, inv.created_at, inv.payout_frequency);
+      const currentValue = +(inv.amount + earned).toFixed(2);
+      return { ...inv, interest_earned: earned, current_value: currentValue };
+    });
 
-  const totalInvested = enriched.reduce((s, i) => s + (i.status === 'active' ? i.amount : 0), 0);
-  const totalValue = enriched.reduce((s, i) => s + (i.status === 'active' ? i.current_value : 0), 0);
-  const totalEarned = enriched.reduce((s, i) => s + (i.status === 'active' ? i.interest_earned : 0), 0);
+    const totalInvested = enriched.reduce((s, i) => s + (i.status === 'active' ? i.amount : 0), 0);
+    const totalValue = enriched.reduce((s, i) => s + (i.status === 'active' ? i.current_value : 0), 0);
+    const totalEarned = enriched.reduce((s, i) => s + (i.status === 'active' ? i.interest_earned : 0), 0);
 
-  res.json({
-    investments: enriched,
-    summary: {
-      total_invested: +totalInvested.toFixed(2),
-      total_value: +totalValue.toFixed(2),
-      total_earned: +totalEarned.toFixed(2),
-      roi: totalInvested > 0 ? +((totalEarned / totalInvested) * 100).toFixed(2) : 0,
-      active_count: enriched.filter(i => i.status === 'active').length,
-    }
-  });
+    res.json({
+      investments: enriched,
+      summary: {
+        total_invested: +totalInvested.toFixed(2),
+        total_value: +totalValue.toFixed(2),
+        total_earned: +totalEarned.toFixed(2),
+        roi: totalInvested > 0 ? +((totalEarned / totalInvested) * 100).toFixed(2) : 0,
+        active_count: enriched.filter(i => i.status === 'active').length,
+      }
+    });
+  } catch (e) {
+    console.error('Get portfolio error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // POST invest in a project
