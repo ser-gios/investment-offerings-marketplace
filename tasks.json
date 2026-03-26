@@ -2,21 +2,21 @@
   {
     "id": "1-deposits-fix",
     "content": "Diagnosticar y arreglar área de Depósitos en admin (negro/vacío)",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "id": "2-delete-projects",
     "content": "Agregar función de eliminar proyectos en admin + endpoint backend",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "3-category-filter",
     "content": "Agregar filtro por categoría en admin projects tab",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "id": "4-category-colors",
     "content": "Agregar colores por categoría en barras de growth/gráficos",
-    "status": "pending"
+    "status": "completed"
   }
 ]
