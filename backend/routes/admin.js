@@ -22,10 +22,10 @@ router.get('/stats', async (req, res) => {
       users: users?.cnt || 0,
       projects: projects?.cnt || 0,
       active_projects: activeProjects?.cnt || 0,
-      total_invested: investments?.total || 0,
+      total_invested: parseFloat(investments?.total) || 0,
       total_investments: investments?.cnt || 0,
       pending_payouts: payouts?.cnt || 0,
-      pending_payouts_amount: payouts?.total || 0,
+      pending_payouts_amount: parseFloat(payouts?.total) || 0,
       recent_projects: recentProjects || [],
     });
   } catch (e) {
