@@ -181,32 +181,4 @@ router.get('/deposits', async (req, res) => {
   }
 });
 
-// SEED deposits (development/testing only)
-router.post('/deposits/seed', async (req, res) => {
-  try {
-    // Get an investor user
-    const investor = await dbAsync.query('SELECT id, email, name FROM users WHERE role = ? LIMIT 1', ['investor']);
-    if (!investor) return res.status(400).json({ error: 'No investor found to create test deposits' });
-    
-    const { v4: uuidv4 } = require('uuid');
-    const deposits = [
-      { id: uuidv4(), investor_id: investor.id, amount: 500, status: 'pending', tx_hash: '0x' + Math.random().toString(16).slice(2) },
-      { id: uuidv4(), investor_id: investor.id, amount: 1000, status: 'confirmed', tx_hash: '0x' + Math.random().toString(16).slice(2) },
-      { id: uuidv4(), investor_id: investor.id, amount: 2500, status: 'confirmed', tx_hash: '0x' + Math.random().toString(16).slice(2) },
-    ];
-    
-    for (const d of deposits) {
-      await dbAsync.run(
-        'INSERT INTO deposits (id, investor_id, amount, status, tx_hash) VALUES (?, ?, ?, ?, ?)',
-        [d.id, d.investor_id, d.amount, d.status, d.tx_hash]
-      );
-    }
-    
-    res.json({ success: true, created: deposits.length });
-  } catch (e) {
-    console.error('Seed deposits error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
 module.exports = router;

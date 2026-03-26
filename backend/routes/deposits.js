@@ -167,4 +167,29 @@ async function verifyBlockchainTransaction(txHash, expectedAmount) {
   }
 }
 
+// SEED deposits for testing (no auth required)
+router.post('/seed-test', (req, res) => {
+  try {
+    const investor = db.prepare('SELECT id FROM users WHERE role = ? LIMIT 1').get('investor');
+    if (!investor) return res.status(400).json({ error: 'No investor found' });
+    
+    const deposits = [
+      { id: uuidv4(), investor_id: investor.id, amount: 500, status: 'pending', tx_hash: '0x' + Math.random().toString(16).slice(2) },
+      { id: uuidv4(), investor_id: investor.id, amount: 1000, status: 'confirmed', tx_hash: '0x' + Math.random().toString(16).slice(2) },
+      { id: uuidv4(), investor_id: investor.id, amount: 2500, status: 'confirmed', tx_hash: '0x' + Math.random().toString(16).slice(2) },
+    ];
+    
+    for (const d of deposits) {
+      db.prepare(`
+        INSERT INTO deposits (id, investor_id, amount, status, tx_hash, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(d.id, d.investor_id, d.amount, d.status, d.tx_hash, new Date().toISOString());
+    }
+    
+    res.json({ success: true, created: deposits.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
