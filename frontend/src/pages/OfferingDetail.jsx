@@ -8,9 +8,9 @@ import { TrendingUp, Users, Clock, Shield, FileText, Image, Star, DollarSign, Ch
 
 function RatingBar({ label, value }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
       <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: 150, flexShrink: 0 }}>{label}</span>
-      <div style={{ flex: 1, height: 8, background: 'var(--surface-2)', borderRadius: 99 }}>
+      <div style={{ flex: 1, height: 12, background: 'var(--surface-2)', borderRadius: 99 }}>
         <div style={{ height: '100%', borderRadius: 99, width: `${(value / 5) * 100}%`, background: 'var(--grad-yellow)', transition: 'width 0.5s ease' }} />
       </div>
       <span className="mono" style={{ fontSize: '0.78rem', color: 'var(--yellow)', width: 28, textAlign: 'right', fontWeight: 600 }}>{value}</span>
@@ -172,6 +172,24 @@ export default function OfferingDetail() {
               )}
             </div>
 
+            {showRatingForm && (
+              <div className="scale-in" style={{ background: 'var(--obsidian)', borderRadius: 'var(--r-lg)', border: '1px solid var(--border)', padding: '1.25rem', marginBottom: '1.25rem' }}>
+                <h4 style={{ marginBottom: '1rem', fontSize: '0.95rem' }}>{t('detail_rate_btn')}</h4>
+                {[
+                  { key: 'payout_reliability', label: t('detail_payout_reliability') },
+                  { key: 'transparency', label: t('detail_transparency') },
+                  { key: 'overall', label: t('detail_overall') },
+                ].map(({ key, label }) => (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', width: 160, flexShrink: 0 }}>{label}</span>
+                    <RatingStars value={ratingForm[key]} size={22} interactive onChange={v => setRatingForm(f => ({ ...f, [key]: v }))} />
+                  </div>
+                ))}
+                <textarea value={ratingForm.feedback} onChange={e => setRatingForm(f => ({ ...f, feedback: e.target.value }))} placeholder={t('detail_feedback_placeholder')} rows={3} style={{ marginTop: '0.5rem' }} />
+                <button className="btn btn-primary" onClick={postRating} style={{ marginTop: '0.75rem' }}>{t('detail_submit_rating')}</button>
+              </div>
+            )}
+
             {project.rating ? (
               <>
                 <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
@@ -186,24 +204,6 @@ export default function OfferingDetail() {
                     <RatingBar label={t('detail_overall')} value={project.rating.overall} />
                   </div>
                 </div>
-
-                {showRatingForm && (
-                  <div className="scale-in" style={{ background: 'var(--obsidian)', borderRadius: 'var(--r-lg)', border: '1px solid var(--border)', padding: '1.25rem', marginBottom: '1.25rem' }}>
-                    <h4 style={{ marginBottom: '1rem', fontSize: '0.95rem' }}>{t('detail_rate_btn')}</h4>
-                    {[
-                      { key: 'payout_reliability', label: t('detail_payout_reliability') },
-                      { key: 'transparency', label: t('detail_transparency') },
-                      { key: 'overall', label: t('detail_overall') },
-                    ].map(({ key, label }) => (
-                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
-                        <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', width: 160, flexShrink: 0 }}>{label}</span>
-                        <RatingStars value={ratingForm[key]} size={22} interactive onChange={v => setRatingForm(f => ({ ...f, [key]: v }))} />
-                      </div>
-                    ))}
-                    <textarea value={ratingForm.feedback} onChange={e => setRatingForm(f => ({ ...f, feedback: e.target.value }))} placeholder={t('detail_feedback_placeholder')} rows={3} style={{ marginTop: '0.5rem' }} />
-                    <button className="btn btn-primary" onClick={postRating} style={{ marginTop: '0.75rem' }}>{t('detail_submit_rating')}</button>
-                  </div>
-                )}
 
                 {project.ratings_list?.map(r => (
                   <div key={r.id} style={{ padding: '1rem', background: 'var(--obsidian)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', marginBottom: '0.75rem' }}>
