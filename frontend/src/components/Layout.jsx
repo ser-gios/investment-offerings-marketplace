@@ -12,6 +12,7 @@ const navItems = {
   ],
   business: [
     { to: '/marketplace', labelKey: 'nav_marketplace', icon: LayoutGrid },
+    { to: '/business-account', labelKey: 'nav_business_account', icon: Wallet },
     { to: '/my-projects', labelKey: 'nav_my_projects', icon: BarChart3 },
     { to: '/create', labelKey: 'nav_create', icon: PlusCircle },
   ],

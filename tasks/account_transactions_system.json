@@ -1,0 +1,32 @@
+[
+  {
+    "id": "account_system_1",
+    "content": "System Overview: Account Transactions & Commission Handling",
+    "status": "completed"
+  },
+  {
+    "id": "account_system_2",
+    "content": "Database Tables Created: platform_config, account_transactions",
+    "status": "completed"
+  },
+  {
+    "id": "account_system_3",
+    "content": "Investment Flow: Investor -$200 → Business +$194 (97%) → Platform +$6 (3%)",
+    "status": "completed"
+  },
+  {
+    "id": "account_system_4",
+    "content": "Admin Endpoints: Config management, Transaction audit trail, Balance tracking",
+    "status": "completed"
+  },
+  {
+    "id": "account_system_5",
+    "content": "Verify implementation by calling: POST /api/init-db to create new tables",
+    "status": "pending"
+  },
+  {
+    "id": "account_system_6",
+    "content": "Test investment flow and verify commission deductions in responses",
+    "status": "pending"
+  }
+]

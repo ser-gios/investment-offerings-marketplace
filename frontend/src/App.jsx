@@ -8,6 +8,7 @@ import CreateOffering from './pages/CreateOffering';
 import Portfolio from './pages/Portfolio';
 import MyProjects from './pages/MyProjects';
 import MyAccount from './pages/MyAccount';
+import BusinessAccount from './pages/BusinessAccount';
 import SecondaryMarket from './pages/SecondaryMarket';
 import Admin from './pages/Admin';
 
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/offering/:id" element={<Layout><OfferingDetail /></Layout>} />
       <Route path="/portfolio" element={<Layout><ProtectedRoute roles={['investor', 'admin']}><Portfolio /></ProtectedRoute></Layout>} />
       <Route path="/my-account" element={<Layout><ProtectedRoute roles={['investor', 'admin']}><MyAccount /></ProtectedRoute></Layout>} />
+      <Route path="/business-account" element={<Layout><ProtectedRoute roles={['business', 'admin']}><BusinessAccount /></ProtectedRoute></Layout>} />
       <Route path="/create" element={<Layout><ProtectedRoute roles={['business', 'admin']}><CreateOffering /></ProtectedRoute></Layout>} />
       <Route path="/my-projects" element={<Layout><ProtectedRoute roles={['business', 'admin']}><MyProjects /></ProtectedRoute></Layout>} />
       <Route path="/secondary" element={<Layout><ProtectedRoute roles={['investor', 'admin']}><SecondaryMarket /></ProtectedRoute></Layout>} />

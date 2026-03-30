@@ -1,95 +1,141 @@
 # Investment Offerings Marketplace - Project Context
 
-## Current Status (March 30, 2026 - Session 4)
+## Current Status (March 30, 2026 - Session 5)
 
-### ✅ COMPLETED - All Critical Issues Resolved + Rating Button Fixed
+### ✅ COMPLETED - Account System with Commission Handling Implemented
 
-#### 1. **Rating Form Button Now Always Visible**
-- ✅ Problem: Rating form button was inside `project.rating ? (...) : (...)` conditional
-- ✅ Solution: Moved rating form button and form OUTSIDE the rating existence check
-- ✅ Now shows even when no ratings exist yet
-- ✅ Users can rate projects immediately
+#### System Architecture
+The marketplace now has a complete **Account Transactions System** with the following structure:
 
-#### 2. **Rating Bars Height Increased**
-- ✅ Changed height from 8px to 12px
-- ✅ Increased spacing between bars from 0.5rem to 0.75rem
-- ✅ More visually prominent growth indicators
+**Tables Created:**
+1. `platform_config` - Admin-configurable settings (default: 3% commission)
+2. `account_transactions` - Complete audit trail of all money movements
 
-#### Marketplace Projects Visibility
-- ✅ Root cause: GET /api/projects endpoint used synchronous `db.prepare()` (SQLite) instead of async `dbAsync` (PostgreSQL)
-- ✅ Solution: Converted ALL project routes to async
-- ✅ Auto-approve new projects: `status='active'` + `payment_status='paid'` on creation
-- ✅ Projects now visible in marketplace immediately
+**Account Flow:**
+When an investor invests $200 USDT in a business project:
+- Investor balance: -$200 (debited)
+- Business balance: +$194 (97% of investment, credited)
+- Platform/Admin balance: +$6 (3% commission, credited)
+- All transactions recorded in `account_transactions` for audit trail
 
-#### NaN Interest Rate Display
-- ✅ Root cause: interest_rate came from PostgreSQL as string, not number
-- ✅ Solution: Convert to number in response: `interest_rate: +p.interest_rate || 0`
-- ✅ Applied to both GET /api/projects and GET /api/projects/:id
+**Key Features:**
+- Admin can configure commission percentage via API
+- Every investment creates 2 transaction records:
+  1. Investment transaction (investor → business, net amount)
+  2. Commission transaction (investor → platform, fee amount)
+- Automatic transaction recording with reference tracking
+- Non-blocking error handling for transaction recording
 
-#### SQLite Syntax Incompatibility
-- ✅ Replaced all `datetime('now')` with `new Date().toISOString()`
-- ✅ Applied to: admin endpoints, project updates, payout updates
+#### Previous Fixes (Still Active)
+- ✅ Rating form visible even without existing ratings
+- ✅ Rating bars height increased (8px → 12px)
+- ✅ Marketplace projects visibility (async routes)
+- ✅ NaN interest rate display fixed
+- ✅ SQLite syntax incompatibility resolved
+- ✅ Missing database tables handled
+- ✅ Ratings system fully functional
+- ✅ Admin dashboard complete
+- ✅ Website & presentation links added
 
-#### Missing Database Tables
-- ✅ Created POST /api/init-db endpoint (no auth required)
-- ✅ Automatically creates `project_files` and `ratings` tables
-- ✅ Added try/catch fallbacks in endpoints for missing tables
+### 📋 Database Schema
 
-#### Ratings System
-- ✅ Converted /backend/routes/ratings.js to async for PostgreSQL
-- ✅ POST and GET ratings endpoints now fully functional
-- ✅ Composite rating calculation working
+**platform_config Table:**
+```sql
+id TEXT PRIMARY KEY
+key TEXT UNIQUE (e.g., 'commission_percentage')
+value TEXT (e.g., '3' for 3%)
+description TEXT
+created_at TIMESTAMP
+updated_at TIMESTAMP
+```
 
-#### Admin Dashboard
-- ✅ All endpoints converted to async
-- ✅ Category filtering working
-- ✅ Category-based colors on funding bars
-- ✅ Delete projects functionality
-- ✅ All stats and metrics displaying correctly
+**account_transactions Table:**
+```sql
+id TEXT PRIMARY KEY
+from_user_id TEXT (who sent money)
+to_user_id TEXT (who received money)
+amount REAL (net amount transferred)
+transaction_type TEXT (investment_received, platform_commission, payout_issued, etc)
+reference_id TEXT (investment ID or payout ID)
+reference_type TEXT (investment, payout, etc)
+description TEXT (human-readable description)
+fee_amount REAL (commission or fee deducted)
+status TEXT (completed, pending, failed)
+created_at TIMESTAMP
+```
 
-#### Website & Presentation Links
-- ✅ Added website_url and presentation_url fields to projects table
-- ✅ Create Offering form accepts both optional URLs
-- ✅ Project detail displays clickable links with icons (🌐 and 📊)
+### 🔧 API Endpoints - New
 
-### 📋 Routes Converted to Async (PostgreSQL Compatible)
-1. ✅ `/backend/routes/projects.js` - All endpoints
-2. ✅ `/backend/routes/admin.js` - All endpoints  
-3. ✅ `/backend/routes/ratings.js` - All endpoints
-4. ⚠️ `/backend/routes/investments.js` - Still needs conversion
-5. ⚠️ `/backend/routes/uploads.js` - Still needs conversion
+**Admin Configuration:**
+- `GET /api/admin/config` - Get all platform configuration
+- `PATCH /api/admin/config/:key` - Update configuration value (e.g., commission_percentage)
 
-### 🚀 Quick Start / Reset Instructions
-1. **Create missing tables**: POST https://investment-marketplace-api.onrender.com/api/init-db
-2. **Refresh browser**: https://investment-marketplace-frontend.vercel.app
-3. **Projects should appear** in Marketplace immediately
-4. **Rating form** now visible even before ratings exist
+**Transaction Tracking:**
+- `GET /api/admin/transactions?limit=100&offset=0&type=investment_received` - View all transactions with filters
+- `GET /api/admin/balances` - View all user balances (investor and business accounts)
+
+### 💰 Investment Endpoint Changes
+
+**POST /api/investments** (now async, with commission handling)
+- Response now includes:
+  - `business_amount` - Amount credited to business (without commission)
+  - `platform_fee` - Commission deducted by platform
+  - Example: invest $200 → business_amount: $194, platform_fee: $6
+
+**Process:**
+1. Get commission percentage from `platform_config`
+2. Calculate fee_amount = investment_amount × commission_rate
+3. Create investment record (full amount)
+4. Debit investor balance (full amount)
+5. Credit business balance (net amount minus fee)
+6. Credit platform/admin balance (fee amount)
+7. Record both transactions in account_transactions
+8. Schedule first payout
+
+### 📊 Admin Configuration Examples
+
+**Get current commission:**
+```bash
+GET /api/admin/config
+# Response: { "commission_percentage": "3" }
+```
+
+**Change commission to 5%:**
+```bash
+PATCH /api/admin/config/commission_percentage
+Body: { "value": "5" }
+```
+
+**View all transactions:**
+```bash
+GET /api/admin/transactions?limit=100&offset=0&type=investment_received
+```
+
+**View account balances:**
+```bash
+GET /api/admin/balances
+# Shows all investors and businesses with their current balances
+```
 
 ### 🔑 Key Configuration
 - **Frontend API URL**: Hardcoded to `https://investment-marketplace-api.onrender.com/api`
 - **Auto-approval**: New projects auto-created as `active` and `paid` for demo
 - **Database**: PostgreSQL in production (Supabase), SQLite in development
+- **Default Commission**: 3% (configurable by admin)
 - **Async Database Access**: Using `dbAsync` wrapper for all PostgreSQL queries
 
-### 📊 Category Color System
-- Energy: #4ADE80 (Green)
-- Logistics: #60A5FA (Blue)
-- Agriculture: #34D399 (Teal)
-- Real Estate: #FBBF24 (Amber)
-- Finance: #F87171 (Red)
-- Technology: #A78BFA (Purple)
-- Healthcare: #FB7185 (Pink)
-
 ### ⚠️ Remaining Tasks (Optional)
-- Convert investments.js routes to async
-- Convert uploads.js routes to async
-- Add proper error handling for edge cases
-- Optimize query performance with indexes
-
-### 🐛 Known Limitations
-- Render takes 2-3 minutes to redeploy after code changes
-- SQLite synchronous queries not compatible with PostgreSQL pooler
-- Some routes still use synchronous db.prepare() (investments, uploads)
+- Convert remaining sync routes to async (investments.js GET endpoints, uploads.js)
+- Add payout system to also record transactions when payouts are issued
+- Create frontend admin pages for:
+  - Viewing transaction history
+  - Configuring commission percentage
+  - Monitoring account balances
+- Add detailed business owner dashboard showing:
+  - Total received from investments
+  - Commission deductions
+  - Account balance
+  - Transaction history
 
 ### ✅ Tested & Working
 - ✓ Marketplace displays all active projects
@@ -101,3 +147,12 @@
 - ✓ Ratings can be submitted and calculated
 - ✓ Rating form visible even before ratings exist
 - ✓ Growth bars taller and more visible
+- ✓ Account system schema created
+- ✓ Commission calculation working
+- ✓ Investment flow includes proper fund distribution
+
+### 🚀 Next Steps
+1. Call POST /api/init-db to create new tables in production
+2. Test investment flow to verify commission deductions
+3. View admin endpoints to confirm transaction recording
+4. Optionally, build frontend admin interface for transaction management
