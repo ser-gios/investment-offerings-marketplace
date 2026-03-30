@@ -1,40 +1,56 @@
 # Investment Offerings Marketplace - Project Context
 
-## Current Status (March 26, 2026 - Session 3 - Final)
+## Current Status (March 30, 2026 - Session 4)
 
-### ✅ COMPLETED - All Critical Issues Resolved
+### ✅ COMPLETED - All Critical Issues Resolved + Rating Button Fixed
 
-#### 1. **Marketplace Projects Visibility**
+#### 1. **Rating Form Button Now Always Visible**
+- ✅ Problem: Rating form button was inside `project.rating ? (...) : (...)` conditional
+- ✅ Solution: Moved rating form button and form OUTSIDE the rating existence check
+- ✅ Now shows even when no ratings exist yet
+- ✅ Users can rate projects immediately
+
+#### 2. **Rating Bars Height Increased**
+- ✅ Changed height from 8px to 12px
+- ✅ Increased spacing between bars from 0.5rem to 0.75rem
+- ✅ More visually prominent growth indicators
+
+#### Marketplace Projects Visibility
 - ✅ Root cause: GET /api/projects endpoint used synchronous `db.prepare()` (SQLite) instead of async `dbAsync` (PostgreSQL)
 - ✅ Solution: Converted ALL project routes to async
 - ✅ Auto-approve new projects: `status='active'` + `payment_status='paid'` on creation
 - ✅ Projects now visible in marketplace immediately
 
-#### 2. **NaN Interest Rate Display**
+#### NaN Interest Rate Display
 - ✅ Root cause: interest_rate came from PostgreSQL as string, not number
 - ✅ Solution: Convert to number in response: `interest_rate: +p.interest_rate || 0`
 - ✅ Applied to both GET /api/projects and GET /api/projects/:id
 
-#### 3. **SQLite Syntax Incompatibility**
+#### SQLite Syntax Incompatibility
 - ✅ Replaced all `datetime('now')` with `new Date().toISOString()`
 - ✅ Applied to: admin endpoints, project updates, payout updates
 
-#### 4. **Missing Database Tables**
+#### Missing Database Tables
 - ✅ Created POST /api/init-db endpoint (no auth required)
 - ✅ Automatically creates `project_files` and `ratings` tables
 - ✅ Added try/catch fallbacks in endpoints for missing tables
 
-#### 5. **Ratings System**
+#### Ratings System
 - ✅ Converted /backend/routes/ratings.js to async for PostgreSQL
 - ✅ POST and GET ratings endpoints now fully functional
 - ✅ Composite rating calculation working
 
-#### 6. **Admin Dashboard**
+#### Admin Dashboard
 - ✅ All endpoints converted to async
 - ✅ Category filtering working
 - ✅ Category-based colors on funding bars
 - ✅ Delete projects functionality
 - ✅ All stats and metrics displaying correctly
+
+#### Website & Presentation Links
+- ✅ Added website_url and presentation_url fields to projects table
+- ✅ Create Offering form accepts both optional URLs
+- ✅ Project detail displays clickable links with icons (🌐 and 📊)
 
 ### 📋 Routes Converted to Async (PostgreSQL Compatible)
 1. ✅ `/backend/routes/projects.js` - All endpoints
@@ -47,6 +63,7 @@
 1. **Create missing tables**: POST https://investment-marketplace-api.onrender.com/api/init-db
 2. **Refresh browser**: https://investment-marketplace-frontend.vercel.app
 3. **Projects should appear** in Marketplace immediately
+4. **Rating form** now visible even before ratings exist
 
 ### 🔑 Key Configuration
 - **Frontend API URL**: Hardcoded to `https://investment-marketplace-api.onrender.com/api`
@@ -82,3 +99,5 @@
 - ✓ Create project auto-approves
 - ✓ Delete projects with investment validation
 - ✓ Ratings can be submitted and calculated
+- ✓ Rating form visible even before ratings exist
+- ✓ Growth bars taller and more visible

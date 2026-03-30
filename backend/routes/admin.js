@@ -185,4 +185,88 @@ router.get('/deposits', async (req, res) => {
   }
 });
 
+// GET platform configuration (commission percentage, etc)
+router.get('/config', async (req, res) => {
+  try {
+    const configs = await dbAsync.queryAll(`SELECT * FROM platform_config ORDER BY key`, []);
+    const result = {};
+    (configs || []).forEach(c => {
+      result[c.key] = c.value;
+    });
+    res.json(result);
+  } catch (e) {
+    console.error('Get config error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PATCH update platform configuration
+router.patch('/config/:key', async (req, res) => {
+  const { value } = req.body;
+  if (value === undefined) return res.status(400).json({ error: 'Missing value' });
+
+  try {
+    const existing = await dbAsync.query(`SELECT id FROM platform_config WHERE key = ?`, [req.params.key]);
+    const now = new Date().toISOString();
+    
+    if (existing) {
+      await dbAsync.run(`UPDATE platform_config SET value = ?, updated_at = ? WHERE key = ?`, [value, now, req.params.key]);
+    } else {
+      const { v4: uuidv4 } = require('uuid');
+      await dbAsync.run(`INSERT INTO platform_config (id, key, value, updated_at) VALUES (?, ?, ?, ?)`, 
+        [uuidv4(), req.params.key, value, now]);
+    }
+    
+    const updated = await dbAsync.query(`SELECT * FROM platform_config WHERE key = ?`, [req.params.key]);
+    res.json(updated);
+  } catch (e) {
+    console.error('Update config error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET account transactions with filters
+router.get('/transactions', async (req, res) => {
+  try {
+    const { limit = 100, offset = 0, type = null } = req.query;
+    let query = `SELECT t.*, 
+      uf.name as from_user_name, uf.email as from_user_email,
+      tu.name as to_user_name, tu.email as to_user_email
+      FROM account_transactions t
+      LEFT JOIN users uf ON t.from_user_id = uf.id
+      LEFT JOIN users tu ON t.to_user_id = tu.id`;
+    const params = [];
+
+    if (type) {
+      query += ` WHERE t.transaction_type = ?`;
+      params.push(type);
+    }
+
+    query += ` ORDER BY t.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+
+    const transactions = await dbAsync.queryAll(query, params);
+    res.json(transactions || []);
+  } catch (e) {
+    console.error('Get transactions error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET account balances (users with balance info)
+router.get('/balances', async (req, res) => {
+  try {
+    const users = await dbAsync.queryAll(`
+      SELECT id, email, name, role, balance, created_at
+      FROM users
+      WHERE role IN ('investor', 'business')
+      ORDER BY balance DESC
+    `, []);
+    res.json(users || []);
+  } catch (e) {
+    console.error('Get balances error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

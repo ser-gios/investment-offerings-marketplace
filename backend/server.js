@@ -78,6 +78,54 @@ app.post('/api/init-db', async (req, res) => {
     } catch (e) {
       // Column might already exist
     }
+
+    // Create platform configuration table
+    await dbAsync.run(`
+      CREATE TABLE IF NOT EXISTS platform_config (
+        id TEXT PRIMARY KEY,
+        key TEXT UNIQUE NOT NULL,
+        value TEXT NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `, []);
+
+    // Create account transactions table for audit trail
+    await dbAsync.run(`
+      CREATE TABLE IF NOT EXISTS account_transactions (
+        id TEXT PRIMARY KEY,
+        from_user_id TEXT NOT NULL,
+        to_user_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        transaction_type TEXT NOT NULL,
+        reference_id TEXT,
+        reference_type TEXT,
+        description TEXT,
+        fee_amount REAL DEFAULT 0,
+        status TEXT DEFAULT 'completed',
+        created_at TIMESTAMP DEFAULT NOW(),
+        FOREIGN KEY (from_user_id) REFERENCES users(id),
+        FOREIGN KEY (to_user_id) REFERENCES users(id)
+      )
+    `, []);
+
+    // Initialize platform configuration with default commission fee (3%)
+    try {
+      const existingConfig = await dbAsync.query(
+        `SELECT value FROM platform_config WHERE key = ?`,
+        ['commission_percentage']
+      );
+      if (!existingConfig) {
+        const configId = require('uuid').v4();
+        await dbAsync.run(
+          `INSERT INTO platform_config (id, key, value, description) VALUES (?, ?, ?, ?)`,
+          [configId, 'commission_percentage', '3', 'Porcentaje de comisión de inversiones (ej: 3 para 3%)']
+        );
+      }
+    } catch (e) {
+      console.warn('Could not initialize commission config:', e.message);
+    }
     
     res.json({ success: true, message: 'Database tables initialized and updated' });
   } catch (e) {

@@ -15,6 +15,37 @@ function calcInterest(amount, rate, purchasedAt, frequency) {
   return +(value - amount).toFixed(2);
 }
 
+// Helper: Get commission percentage from platform config
+async function getCommissionPercentage() {
+  try {
+    const config = await dbAsync.query(
+      `SELECT value FROM platform_config WHERE key = ?`,
+      ['commission_percentage']
+    );
+    return parseFloat(config?.value || 3) / 100; // Default 3% if not found
+  } catch (e) {
+    console.warn('Could not get commission percentage, using default 3%:', e.message);
+    return 0.03;
+  }
+}
+
+// Helper: Record transaction in account_transactions table
+async function recordTransaction(fromUserId, toUserId, amount, transactionType, referenceId, referenceType, description, feeAmount = 0) {
+  try {
+    const txId = uuidv4();
+    await dbAsync.run(
+      `INSERT INTO account_transactions (id, from_user_id, to_user_id, amount, transaction_type, reference_id, reference_type, description, fee_amount, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [txId, fromUserId, toUserId, amount, transactionType, referenceId, referenceType, description, feeAmount, 'completed', new Date().toISOString()]
+    );
+    return txId;
+  } catch (e) {
+    console.error('Error recording transaction:', e.message);
+    // Non-blocking error - don't fail the investment if transaction record fails
+    return null;
+  }
+}
+
 // GET my portfolio
 router.get('/portfolio', authenticate, async (req, res) => {
   try {
@@ -50,57 +81,105 @@ router.get('/portfolio', authenticate, async (req, res) => {
   }
 });
 
-// POST invest in a project
-router.post('/', authenticate, requireRole('investor', 'admin'), (req, res) => {
+// POST invest in a project (with commission handling)
+router.post('/', authenticate, requireRole('investor', 'admin'), async (req, res) => {
   const { project_id, amount } = req.body;
   if (!project_id || !amount) return res.status(400).json({ error: 'Missing fields' });
 
-  const project = db.prepare('SELECT * FROM projects WHERE id = ? AND status = ?').get(project_id, 'active');
-  if (!project) return res.status(404).json({ error: 'Project not found or inactive' });
-
-  // Verificar que el usuario tenga suficiente balance
-  const user = db.prepare('SELECT balance FROM users WHERE id = ?').get(req.user.id);
-  if (!user || user.balance < amount) {
-    return res.status(400).json({ 
-      error: 'Saldo insuficiente. Por favor deposita primero en Mi Cuenta.',
-      required: amount,
-      current_balance: user?.balance || 0
-    });
-  }
-
-  // Crear inversión
-  const invId = uuidv4();
-  const now = new Date().toISOString();
-
-  // Validaciones adicionales
-  if (+amount < project.min_investment) {
-    return res.status(400).json({ error: `Mínimo de inversión es $${project.min_investment}` });
-  }
-  if (project.max_investment && +amount > project.max_investment) {
-    return res.status(400).json({ error: `Máximo de inversión es $${project.max_investment}` });
-  }
-
-  const remaining = project.total_pool - project.funded_amount;
-  if (+amount > remaining) {
-    return res.status(400).json({ error: `Solo $${remaining.toFixed(2)} disponibles en esta oferta` });
-  }
-
   try {
-    // Crear inversión y debitar balance en transacción
-    db.prepare(`
+    const project = await dbAsync.query('SELECT * FROM projects WHERE id = ? AND status = ?', [project_id, 'active']);
+    if (!project) return res.status(404).json({ error: 'Project not found or inactive' });
+
+    // Verificar que el usuario tenga suficiente balance
+    const user = await dbAsync.query('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    if (!user || user.balance < amount) {
+      return res.status(400).json({ 
+        error: 'Saldo insuficiente. Por favor deposita primero en Mi Cuenta.',
+        required: amount,
+        current_balance: user?.balance || 0
+      });
+    }
+
+    // Validaciones adicionales
+    if (+amount < project.min_investment) {
+      return res.status(400).json({ error: `Mínimo de inversión es $${project.min_investment}` });
+    }
+    if (project.max_investment && +amount > project.max_investment) {
+      return res.status(400).json({ error: `Máximo de inversión es $${project.max_investment}` });
+    }
+
+    const remaining = project.total_pool - project.funded_amount;
+    if (+amount > remaining) {
+      return res.status(400).json({ error: `Solo $${remaining.toFixed(2)} disponibles en esta oferta` });
+    }
+
+    // Get commission percentage
+    const commissionRate = await getCommissionPercentage();
+    const feeAmount = +(amount * commissionRate).toFixed(2);
+    const businessAmount = +(amount - feeAmount).toFixed(2);
+
+    // Crear inversión
+    const invId = uuidv4();
+    const now = new Date().toISOString();
+
+    // Crear inversión y debitar balance de inversor
+    await dbAsync.run(`
       INSERT INTO investments (id, investor_id, project_id, amount, purchase_price, current_value, paid_from_balance, created_at)
       VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-    `).run(invId, req.user.id, project_id, amount, amount, amount, now);
+    `, [invId, req.user.id, project_id, amount, amount, amount, now]);
 
-    // Debitar del balance
-    db.prepare(`
+    // Debitar del balance del inversor (monto completo)
+    await dbAsync.run(`
       UPDATE users SET balance = balance - ? WHERE id = ?
-    `).run(amount, req.user.id);
+    `, [amount, req.user.id]);
+
+    // Acreditar balance a la empresa (sin la comisión)
+    await dbAsync.run(`
+      UPDATE users SET balance = balance + ? WHERE id = ?
+    `, [businessAmount, project.user_id]);
 
     // Actualizar funded_amount del proyecto
-    db.prepare(`
+    await dbAsync.run(`
       UPDATE projects SET funded_amount = funded_amount + ? WHERE id = ?
-    `).run(amount, project_id);
+    `, [amount, project_id]);
+
+    // Record transactions in account_transactions
+    // 1. Inversor → Empresa (monto neto sin comisión)
+    await recordTransaction(
+      req.user.id,
+      project.user_id,
+      businessAmount,
+      'investment_received',
+      invId,
+      'investment',
+      `Inversión en proyecto: ${project.name}`,
+      feeAmount
+    );
+
+    // 2. Platform commission (Inversor → Platform)
+    if (feeAmount > 0) {
+      // Get or create admin account
+      const adminUser = await dbAsync.query(
+        `SELECT id FROM users WHERE role = ? LIMIT 1`,
+        ['admin']
+      );
+      if (adminUser) {
+        await dbAsync.run(`
+          UPDATE users SET balance = balance + ? WHERE id = ?
+        `, [feeAmount, adminUser.id]);
+        
+        await recordTransaction(
+          req.user.id,
+          adminUser.id,
+          feeAmount,
+          'platform_commission',
+          invId,
+          'investment',
+          `Comisión plataforma (${(commissionRate * 100).toFixed(1)}%) - Inversión en: ${project.name}`,
+          feeAmount
+        );
+      }
+    }
 
     // Programar primer pago
     const payoutDate = new Date();
@@ -109,8 +188,8 @@ router.post('/', authenticate, requireRole('investor', 'admin'), (req, res) => {
     const periodsMap = { monthly: 12, quarterly: 4, annual: 1 };
     const payoutAmount = +((amount * (project.interest_rate / 100)) / periodsMap[project.payout_frequency]).toFixed(2);
 
-    db.prepare('INSERT INTO payouts (id, investment_id, investor_id, project_id, amount, scheduled_date) VALUES (?,?,?,?,?,?)')
-      .run(uuidv4(), invId, req.user.id, project_id, payoutAmount, payoutDate.toISOString().split('T')[0]);
+    await dbAsync.run('INSERT INTO payouts (id, investment_id, investor_id, project_id, amount, scheduled_date, created_at) VALUES (?,?,?,?,?,?,?)',
+      [uuidv4(), invId, req.user.id, project_id, payoutAmount, payoutDate.toISOString().split('T')[0], now]);
 
     res.status(201).json({
       id: invId,
@@ -119,12 +198,15 @@ router.post('/', authenticate, requireRole('investor', 'admin'), (req, res) => {
         id: invId,
         project_id,
         amount,
+        business_amount: businessAmount,
+        platform_fee: feeAmount,
         purchase_price: amount,
         current_value: amount,
         status: 'active'
       }
     });
   } catch (err) {
+    console.error('Create investment error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
