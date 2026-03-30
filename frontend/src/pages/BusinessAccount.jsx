@@ -17,15 +17,16 @@ export default function BusinessAccount() {
 
   const loadData = async () => {
     try {
-      // Get user balance
-      const userRes = await api.get('/auth/me');
-      setBalance(userRes.data?.balance || 0);
+      // Get user balance from localStorage (fallback method)
+      const user = JSON.parse(localStorage.getItem('nv_user') || '{}');
+      setBalance(user.balance || 0);
 
-      // Get transactions (only investment_received)
-      const txRes = await api.get('/admin/transactions?type=investment_received&limit=100');
+      // Get business transactions
+      const txRes = await api.get('/investments/business/transactions');
       setTransactions(txRes.data || []);
     } catch (err) {
       console.error('Error loading account data:', err);
+      // Continue loading even if there's an error
     } finally {
       setLoading(false);
     }

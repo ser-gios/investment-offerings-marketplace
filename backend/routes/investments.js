@@ -266,4 +266,22 @@ router.post('/market/:listingId/buy', authenticate, requireRole('investor', 'adm
   res.status(201).json({ message: 'Purchase successful', investment_id: newInvId });
 });
 
+// GET business transactions (for business account)
+router.get('/business/transactions', authenticate, async (req, res) => {
+  try {
+    // Get all transactions where this user received money (as a business)
+    const transactions = await dbAsync.queryAll(`
+      SELECT t.* FROM account_transactions t
+      WHERE t.to_user_id = ? AND t.transaction_type = 'investment_received'
+      ORDER BY t.created_at DESC
+      LIMIT 100
+    `, [req.user.id]);
+
+    res.json(transactions || []);
+  } catch (e) {
+    console.error('Get business transactions error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
