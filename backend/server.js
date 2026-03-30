@@ -67,7 +67,19 @@ app.post('/api/init-db', async (req, res) => {
       )
     `, []);
     
-    res.json({ success: true, message: 'Database tables initialized' });
+    // Add new columns to projects table if they don't exist
+    try {
+      await dbAsync.run(`ALTER TABLE projects ADD COLUMN website_url TEXT`, []);
+    } catch (e) {
+      // Column might already exist
+    }
+    try {
+      await dbAsync.run(`ALTER TABLE projects ADD COLUMN presentation_url TEXT`, []);
+    } catch (e) {
+      // Column might already exist
+    }
+    
+    res.json({ success: true, message: 'Database tables initialized and updated' });
   } catch (e) {
     console.error('Init DB error:', e.message);
     res.status(500).json({ error: e.message });

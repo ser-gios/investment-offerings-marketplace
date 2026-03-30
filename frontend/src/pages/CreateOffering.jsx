@@ -101,7 +101,7 @@ export default function CreateOffering() {
   const [createdId, setCreatedId] = useState(null);
   const [error, setError] = useState('');
   const fileRef = useRef();
-  const [form, setForm] = useState({ name: '', description: '', category: 'General', risk_level: 'medium', duration_months: 12, payout_frequency: 'quarterly', interest_rate: '', min_investment: 1000, max_investment: '', total_pool: '', files: [] });
+  const [form, setForm] = useState({ name: '', description: '', category: 'General', risk_level: 'medium', duration_months: 12, payout_frequency: 'quarterly', interest_rate: '', min_investment: 1000, max_investment: '', total_pool: '', website_url: '', presentation_url: '', files: [] });
   const set = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
   
   // Memoize translated strings to avoid re-renders
@@ -123,12 +123,18 @@ export default function CreateOffering() {
     minInv: t('create_min_inv'),
     maxInv: t('create_max_inv'),
     maxInvHint: t('create_max_inv_hint'),
+    website: 'Página Web',
+    websiteHint: 'URL de la página web de tu empresa o proyecto',
+    presentation: 'Link de Presentación',
+    presentationHint: 'YouTube, PowerPoint, Google Drive o Dropbox (opcional)',
     // Placeholders
     placeholderProjectName: 'e.g. Solar Farm Phase II',
     placeholderDescription: t('create_description_placeholder'),
     placeholderInterest: 'e.g. 10.5',
     placeholderPool: '500000',
     placeholderMinInv: '1000',
+    placeholderWebsite: 'https://www.mycompany.com',
+    placeholderPresentation: 'https://youtube.com/watch?v=...',
   }), [t]);
 
   const nextStep = useCallback(() => {
@@ -236,6 +242,10 @@ export default function CreateOffering() {
             <h3 style={{ fontSize: '1.3rem', marginBottom: '0.1rem' }}>{t('step_basic')}</h3>
             <LabeledTextInput label={strings.projectName} hint={strings.projectNameHint} value={form.name} onChange={e => set('name', e.target.value)} placeholder={strings.placeholderProjectName} />
             <LabeledTextArea label={strings.description} hint={strings.descriptionHint} value={form.description} onChange={e => set('description', e.target.value)} rows={5} placeholder={strings.placeholderDescription} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <LabeledTextInput label={strings.website} hint={strings.websiteHint} value={form.website_url} onChange={e => set('website_url', e.target.value)} placeholder={strings.placeholderWebsite} />
+              <LabeledTextInput label={strings.presentation} hint={strings.presentationHint} value={form.presentation_url} onChange={e => set('presentation_url', e.target.value)} placeholder={strings.placeholderPresentation} />
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <LabeledSelect label={strings.category} hint={null} value={form.category} onChange={e => set('category', e.target.value)}>
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}

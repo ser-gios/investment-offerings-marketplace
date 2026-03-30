@@ -127,6 +127,21 @@ export default function OfferingDetail() {
           <div className="card" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
             <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>{t('detail_about')}</h3>
             <p style={{ lineHeight: 1.85, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{project.description}</p>
+            
+            {(project.website_url || project.presentation_url) && (
+              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                {project.website_url && (
+                  <a href={project.website_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', background: 'rgba(100, 200, 255, 0.1)', border: '1px solid rgba(100, 200, 255, 0.3)', borderRadius: 'var(--r-md)', fontSize: '0.85rem', color: 'var(--sapphire)', textDecoration: 'none', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.2)'; e.currentTarget.style.borderColor = 'rgba(100, 200, 255, 0.5)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.1)'; e.currentTarget.style.borderColor = 'rgba(100, 200, 255, 0.3)'; }}>
+                    🌐 Página Web
+                  </a>
+                )}
+                {project.presentation_url && (
+                  <a href={project.presentation_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', background: 'rgba(255, 100, 100, 0.1)', border: '1px solid rgba(255, 100, 100, 0.3)', borderRadius: 'var(--r-md)', fontSize: '0.85rem', color: 'var(--ruby)', textDecoration: 'none', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 100, 100, 0.2)'; e.currentTarget.style.borderColor = 'rgba(255, 100, 100, 0.5)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 100, 100, 0.1)'; e.currentTarget.style.borderColor = 'rgba(255, 100, 100, 0.3)'; }}>
+                    📊 Presentación
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {project.files?.length > 0 && (
