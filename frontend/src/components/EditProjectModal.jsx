@@ -9,16 +9,61 @@ export default function EditProjectModal({ project, onClose, onSave }) {
     presentation_url: project.presentation_url || '',
   });
   const [loading, setLoading] = useState(false);
+  const [imageError, setImageError] = useState('');
   const fileInputRef = useRef(null);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        setFormData(prev => ({ ...prev, project_image: ev.target.result }));
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Resize if too large (max 1200px width)
+          if (width > 1200) {
+            height = (height * 1200) / width;
+            width = 1200;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Compress to JPEG with quality 0.8
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.src = event.target.result;
       };
       reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageError('');
+      
+      // Check file size (max 5MB uncompressed)
+      if (file.size > 5 * 1024 * 1024) {
+        setImageError('Archivo muy grande. Comprimiendo...');
+      }
+      
+      try {
+        const compressedImage = await compressImage(file);
+        // Check compressed size
+        if (compressedImage.length > 5 * 1024 * 1024) {
+          setImageError('La imagen comprimida aún es muy grande. Intenta con una imagen más pequeña.');
+          return;
+        }
+        setFormData(prev => ({ ...prev, project_image: compressedImage }));
+        setImageError('');
+      } catch (err) {
+        setImageError('Error al procesar la imagen');
+      }
     }
   };
 
@@ -96,6 +141,19 @@ export default function EditProjectModal({ project, onClose, onSave }) {
             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 500 }}>
               Imagen del Proyecto
             </label>
+            {imageError && (
+              <div style={{
+                padding: '0.5rem',
+                borderRadius: 'var(--r-sm)',
+                background: 'rgba(200, 100, 100, 0.1)',
+                border: '1px solid rgba(200, 100, 100, 0.3)',
+                color: '#c86464',
+                fontSize: '0.85rem',
+                marginBottom: '0.75rem',
+              }}>
+                {imageError}
+              </div>
+            )}
             {formData.project_image ? (
               <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
                 <img 

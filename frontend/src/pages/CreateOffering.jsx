@@ -100,9 +100,37 @@ export default function CreateOffering() {
   const [loading, setLoading] = useState(false);
   const [createdId, setCreatedId] = useState(null);
   const [error, setError] = useState('');
+  const [imageError, setImageError] = useState('');
   const fileRef = useRef();
   const [form, setForm] = useState({ name: '', description: '', category: 'General', risk_level: 'medium', duration_months: 12, payout_frequency: 'quarterly', interest_rate: '', min_investment: 1000, max_investment: '', total_pool: '', website_url: '', presentation_url: '', project_image: '', files: [] });
   const set = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
+  
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > 1200) {
+            height = (height * 1200) / width;
+            width = 1200;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
   
   // Memoize translated strings to avoid re-renders
   const strings = useMemo(() => ({
@@ -246,10 +274,22 @@ export default function CreateOffering() {
             {/* Project Image Upload */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>📸 Imagen del Proyecto</label>
+              {imageError && (
+                <div style={{
+                  padding: '0.5rem',
+                  borderRadius: 'var(--r-sm)',
+                  background: 'rgba(200, 100, 100, 0.1)',
+                  border: '1px solid rgba(200, 100, 100, 0.3)',
+                  color: '#c86464',
+                  fontSize: '0.85rem',
+                }}>
+                  {imageError}
+                </div>
+              )}
               {form.project_image ? (
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                   <img src={form.project_image} alt="Project" style={{ width: 80, height: 80, borderRadius: 'var(--r-md)', objectFit: 'cover', border: '1px solid var(--border)' }} />
-                  <button type="button" onClick={() => set('project_image', '')} style={{ padding: '0.4rem 0.8rem', background: 'var(--ruby)', border: 'none', borderRadius: 'var(--r-sm)', color: 'white', cursor: 'pointer', fontSize: '0.8rem' }}>Cambiar imagen</button>
+                  <button type="button" onClick={() => { set('project_image', ''); setImageError(''); }} style={{ padding: '0.4rem 0.8rem', background: 'var(--ruby)', border: 'none', borderRadius: 'var(--r-sm)', color: 'white', cursor: 'pointer', fontSize: '0.8rem' }}>Cambiar imagen</button>
                 </div>
               ) : (
                 <label style={{
@@ -268,12 +308,24 @@ export default function CreateOffering() {
                 }}>
                   <Image size={18} />
                   Haz clic o arrastra una imagen (JPG, PNG)
-                  <input type="file" accept="image/*" hidden onChange={e => {
+                  <input type="file" accept="image/*" hidden onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      const reader = new FileReader();
-                      reader.onload = (ev) => set('project_image', ev.target.result);
-                      reader.readAsDataURL(file);
+                      setImageError('');
+                      if (file.size > 5 * 1024 * 1024) {
+                        setImageError('Archivo muy grande. Comprimiendo...');
+                      }
+                      try {
+                        const compressedImage = await compressImage(file);
+                        if (compressedImage.length > 5 * 1024 * 1024) {
+                          setImageError('La imagen comprimida aún es muy grande. Intenta con una imagen más pequeña.');
+                          return;
+                        }
+                        set('project_image', compressedImage);
+                        setImageError('');
+                      } catch (err) {
+                        setImageError('Error al procesar la imagen');
+                      }
                     }
                   }} />
                 </label>
