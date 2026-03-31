@@ -71,6 +71,13 @@ export default function OfferingDetail() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '2rem', alignItems: 'start' }}>
         {/* LEFT */}
         <div>
+          {/* Project Image */}
+          {project.project_image && (
+            <div className="card" style={{ padding: 0, marginBottom: '1.5rem', overflow: 'hidden' }}>
+              <img src={project.project_image} alt={project.name} style={{ width: '100%', height: 300, objectFit: 'cover' }} />
+            </div>
+          )}
+
           <div className="card" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>

@@ -96,7 +96,7 @@ router.get('/:id', async (req, res) => {
 
 // POST create project (business only)
 router.post('/', authenticate, requireRole('business', 'admin'), async (req, res) => {
-  const { name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months, website_url, presentation_url } = req.body;
+  const { name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months, website_url, presentation_url, project_image } = req.body;
   if (!name || !description || !payout_frequency || !interest_rate || !total_pool) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -105,9 +105,9 @@ router.post('/', authenticate, requireRole('business', 'admin'), async (req, res
     const id = uuidv4();
     // Auto-approve projects for demo purposes (status='active', payment_status='paid')
     await dbAsync.run(`
-      INSERT INTO projects (id, user_id, name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months, website_url, presentation_url, status, payment_status)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active','paid')
-    `, [id, req.user.id, name, description, payout_frequency, +interest_rate, +(min_investment || 1000), max_investment ? +max_investment : null, +total_pool, category || 'General', risk_level || 'medium', +(duration_months || 12), website_url || null, presentation_url || null]);
+      INSERT INTO projects (id, user_id, name, description, payout_frequency, interest_rate, min_investment, max_investment, total_pool, category, risk_level, duration_months, website_url, presentation_url, project_image, status, payment_status)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'active','paid')
+    `, [id, req.user.id, name, description, payout_frequency, +interest_rate, +(min_investment || 1000), max_investment ? +max_investment : null, +total_pool, category || 'General', risk_level || 'medium', +(duration_months || 12), website_url || null, presentation_url || null, project_image || null]);
     
     const project = await dbAsync.query('SELECT * FROM projects WHERE id = ?', [id]);
     res.status(201).json(project);

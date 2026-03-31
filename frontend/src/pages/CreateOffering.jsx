@@ -101,7 +101,7 @@ export default function CreateOffering() {
   const [createdId, setCreatedId] = useState(null);
   const [error, setError] = useState('');
   const fileRef = useRef();
-  const [form, setForm] = useState({ name: '', description: '', category: 'General', risk_level: 'medium', duration_months: 12, payout_frequency: 'quarterly', interest_rate: '', min_investment: 1000, max_investment: '', total_pool: '', website_url: '', presentation_url: '', files: [] });
+  const [form, setForm] = useState({ name: '', description: '', category: 'General', risk_level: 'medium', duration_months: 12, payout_frequency: 'quarterly', interest_rate: '', min_investment: 1000, max_investment: '', total_pool: '', website_url: '', presentation_url: '', project_image: '', files: [] });
   const set = useCallback((k, v) => setForm(f => ({ ...f, [k]: v })), []);
   
   // Memoize translated strings to avoid re-renders
@@ -242,6 +242,45 @@ export default function CreateOffering() {
             <h3 style={{ fontSize: '1.3rem', marginBottom: '0.1rem' }}>{t('step_basic')}</h3>
             <LabeledTextInput label={strings.projectName} hint={strings.projectNameHint} value={form.name} onChange={e => set('name', e.target.value)} placeholder={strings.placeholderProjectName} />
             <LabeledTextArea label={strings.description} hint={strings.descriptionHint} value={form.description} onChange={e => set('description', e.target.value)} rows={5} placeholder={strings.placeholderDescription} />
+            
+            {/* Project Image Upload */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>📸 Imagen del Proyecto</label>
+              {form.project_image ? (
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <img src={form.project_image} alt="Project" style={{ width: 80, height: 80, borderRadius: 'var(--r-md)', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                  <button type="button" onClick={() => set('project_image', '')} style={{ padding: '0.4rem 0.8rem', background: 'var(--ruby)', border: 'none', borderRadius: 'var(--r-sm)', color: 'white', cursor: 'pointer', fontSize: '0.8rem' }}>Cambiar imagen</button>
+                </div>
+              ) : (
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '1.5rem',
+                  border: '2px dashed var(--border)',
+                  borderRadius: 'var(--r-md)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background: 'var(--obsidian)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                }}>
+                  <Image size={18} />
+                  Haz clic o arrastra una imagen (JPG, PNG)
+                  <input type="file" accept="image/*" hidden onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => set('project_image', ev.target.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }} />
+                </label>
+              )}
+              <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>Imagen que aparecerá en el mercado (máx 5MB)</span>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <LabeledTextInput label={strings.website} hint={strings.websiteHint} value={form.website_url} onChange={e => set('website_url', e.target.value)} placeholder={strings.placeholderWebsite} />
               <LabeledTextInput label={strings.presentation} hint={strings.presentationHint} value={form.presentation_url} onChange={e => set('presentation_url', e.target.value)} placeholder={strings.placeholderPresentation} />

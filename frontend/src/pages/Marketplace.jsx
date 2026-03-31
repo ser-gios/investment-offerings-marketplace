@@ -42,6 +42,13 @@ function OfferingCard({ project, index, t }) {
       {/* Top gradient accent on hover */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'var(--grad-yellow)', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }} />
 
+      {/* Project Image */}
+      {project.project_image && (
+        <div style={{ marginBottom: '1rem', marginLeft: '-1.5rem', marginRight: '-1.5rem', marginTop: '-1.5rem' }}>
+          <img src={project.project_image} alt={project.name} style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: '8px 8px 0 0' }} />
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
         <div style={{ width: 44, height: 44, borderRadius: 'var(--r-lg)', background: 'var(--yellow-glow)', border: '1px solid rgba(255,214,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <CatIcon size={20} color="var(--yellow)" />
