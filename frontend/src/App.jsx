@@ -11,6 +11,7 @@ import MyAccount from './pages/MyAccount';
 import BusinessAccount from './pages/BusinessAccount';
 import SecondaryMarket from './pages/SecondaryMarket';
 import Admin from './pages/Admin';
+import Disclaimer from './pages/Disclaimer';
 
 function ProtectedRoute({ children, roles }) {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
+      <Route path="/disclaimer" element={<Layout><Disclaimer /></Layout>} />
       <Route path="/" element={<Layout><Navigate to="/marketplace" /></Layout>} />
       <Route path="/marketplace" element={<Layout><Marketplace /></Layout>} />
       <Route path="/offering/:id" element={<Layout><OfferingDetail /></Layout>} />

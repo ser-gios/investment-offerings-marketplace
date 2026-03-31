@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useLang } from '../context/LangContext';
+import { useAuth } from '../context/AuthContext';
+import DisclaimerModal from '../components/DisclaimerModal';
 import { DollarSign, History, TrendingUp, Copy, Check } from 'lucide-react';
 
 export default function MyAccount() {
   const { lang } = useLang();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [balance, setBalance] = useState(0);
   const [deposits, setDeposits] = useState([]);
   const [investments, setInvestments] = useState([]);
@@ -23,8 +27,12 @@ export default function MyAccount() {
   const MIN_DEPOSIT = 200;
 
   useEffect(() => {
+    // Check if investor has accepted disclaimer
+    if (user?.role === 'investor' && !localStorage.getItem('disclaimer_accepted')) {
+      setShowDisclaimer(true);
+    }
     loadAccountData();
-  }, []);
+  }, [user]);
 
   const loadAccountData = async () => {
     try {
@@ -98,7 +106,9 @@ export default function MyAccount() {
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+    <>
+      {showDisclaimer && <DisclaimerModal onAccept={() => setShowDisclaimer(false)} />}
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: '32px', marginBottom: '10px', color: 'white' }}>{lang === 'es' ? 'Mi Cuenta' : 'My Account'}</h1>
         <p style={{ color: '#999' }}>{lang === 'es' ? 'Gestiona tus depósitos e inversiones' : 'Manage your deposits and investments'}</p>
@@ -259,5 +269,6 @@ export default function MyAccount() {
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -78,6 +78,11 @@ app.post('/api/init-db', async (req, res) => {
     } catch (e) {
       // Column might already exist
     }
+    try {
+      await dbAsync.run(`ALTER TABLE projects ADD COLUMN project_image TEXT`, []);
+    } catch (e) {
+      // Column might already exist
+    }
 
     // Create platform configuration table
     await dbAsync.run(`
