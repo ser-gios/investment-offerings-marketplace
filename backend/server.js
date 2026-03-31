@@ -249,6 +249,8 @@ async function initializeDatabase() {
 }
 
 app.listen(PORT, async () => {
-  console.log(`NexVest API running on port ${PORT}`);
+  console.log(`🚀 NexVest API running on port ${PORT}`);
+  console.log('Initializing database...');
   await initializeDatabase();
+  console.log('✅ Server fully initialized and ready!');
 });
