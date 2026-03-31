@@ -117,14 +117,18 @@ router.post('/', authenticate, requireRole('business', 'admin'), async (req, res
   }
 });
 
-// PATCH update project
+// PATCH update project (only image, website_url, presentation_url for businesses)
 router.patch('/:id', authenticate, async (req, res) => {
   try {
     const project = await dbAsync.query('SELECT * FROM projects WHERE id = ?', [req.params.id]);
     if (!project) return res.status(404).json({ error: 'Not found' });
     if (project.user_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
 
-    const allowed = ['name', 'description', 'status', 'risk_level', 'category'];
+    // For business users: only allow editing image, website_url, presentation_url
+    const allowed = req.user.role === 'admin' 
+      ? ['name', 'description', 'status', 'risk_level', 'category', 'project_image', 'website_url', 'presentation_url']
+      : ['project_image', 'website_url', 'presentation_url'];
+    
     const updates = Object.keys(req.body).filter(k => allowed.includes(k));
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
 

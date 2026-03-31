@@ -3,13 +3,15 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import { useLang } from '../context/LangContext';
 import RatingStars from '../components/RatingStars';
-import { PlusCircle, TrendingUp } from 'lucide-react';
+import EditProjectModal from '../components/EditProjectModal';
+import { PlusCircle, TrendingUp, Edit2 } from 'lucide-react';
 
 export default function MyProjects() {
   const navigate = useNavigate();
   const { t } = useLang();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingProject, setEditingProject] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('nv_token');
@@ -28,6 +30,11 @@ export default function MyProjects() {
 
   const statusColor = { active: 'var(--emerald)', pending: 'var(--amber)', closed: 'var(--text-muted)', suspended: 'var(--ruby)' };
   const paymentColor = { pending: 'var(--ruby)', paid: 'var(--emerald)' };
+
+  const handleSaveProject = (updatedProject) => {
+    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    setEditingProject(null);
+  };
 
   return (
     <div className="fade-in">
@@ -56,35 +63,35 @@ export default function MyProjects() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {projects.map(p => (
-            <div key={p.id} className="card" style={{ padding: '1.5rem', cursor: 'pointer', transition: 'border-color 0.2s, transform 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,214,0,0.3)'; e.currentTarget.style.transform = 'translateX(2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,214,0,0.1)'; e.currentTarget.style.transform = 'none'; }}
-              onClick={() => navigate(`/offering/${p.id}`)}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'center' }}>
-                <div>
+            <div key={p.id} className="card" style={{ padding: '1.5rem', transition: 'border-color 0.2s' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 100px', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = '0.8'; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                  onClick={() => navigate(`/offering/${p.id}`)}>
                   <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.3rem' }}>{p.name}</div>
                   <div style={{ display: 'flex', gap: '0.35rem' }}>
                     <span className="tag tag-gold">{p.category}</span>
                     <span className="tag tag-gold">{t(`freq_${p.payout_frequency}`)}</span>
                   </div>
                 </div>
-                <div>
+                <div onClick={(e) => e.stopPropagation()}>
                   <div className="mono" style={{ background: 'var(--grad-yellow-text)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontWeight: 700, fontSize: '1.1rem' }}>{p.interest_rate}%</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('my_annual_rate')}</div>
                 </div>
-                <div>
+                <div onClick={(e) => e.stopPropagation()}>
                   <div className="mono" style={{ fontWeight: 500 }}>${(p.funded_amount || 0).toLocaleString()}</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>/ ${(p.total_pool || 0).toLocaleString()}</div>
                   <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 99, marginTop: '0.3rem' }}>
                     <div style={{ height: '100%', borderRadius: 99, width: `${p.funding_pct}%`, background: 'var(--grad-yellow)', transition: 'width 0.5s' }} />
                   </div>
                 </div>
-                <div>
+                <div onClick={(e) => e.stopPropagation()}>
                   <div className="mono" style={{ fontWeight: 500 }}>{p.investments_count || 0}</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('my_investors')}</div>
                 </div>
-                <div>{p.rating ? <RatingStars value={p.rating.overall} size={14} /> : <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div onClick={(e) => e.stopPropagation()}>{p.rating ? <RatingStars value={p.rating.overall} size={14} /> : <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }} onClick={(e) => e.stopPropagation()}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.22rem 0.65rem', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: `${statusColor[p.status]}18`, color: statusColor[p.status], border: `1px solid ${statusColor[p.status]}30`, textTransform: 'capitalize', width: 'fit-content' }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: statusColor[p.status] }} />
                     {t(`status_${p.status}`)}
@@ -94,10 +101,48 @@ export default function MyProjects() {
                     {p.payment_status === 'paid' ? 'Pagado' : 'Pendiente de Pago'}
                   </span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => setEditingProject(p)}
+                    style={{
+                      padding: '0.6rem 0.8rem',
+                      borderRadius: 'var(--r-md)',
+                      background: 'transparent',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--yellow)';
+                      e.currentTarget.style.color = 'var(--yellow)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                    }}
+                  >
+                    <Edit2 size={14} />
+                    Edit
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
+      )}
+      
+      {editingProject && (
+        <EditProjectModal
+          project={editingProject}
+          onClose={() => setEditingProject(null)}
+          onSave={handleSaveProject}
+        />
       )}
     </div>
   );
